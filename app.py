@@ -28,7 +28,7 @@ KEYWORDS = {
 
 # 설정
 KEYWORD_WINDOW_SECONDS = 180  # 3분
-BOT_COOLDOWN_SECONDS = 300    # 5분
+BOT_COOLDOWN_SECONDS = 60    # 1분
 
 # 키워드 별 감지 시간 큐
 keyword_timestamps = defaultdict(deque)
