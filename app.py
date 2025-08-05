@@ -3,52 +3,69 @@ import time
 from flask import Flask, request
 from slack_bolt import App
 from slack_bolt.adapter.flask import SlackRequestHandler
-from collections import deque
+from collections import deque, defaultdict
 from dotenv import load_dotenv
 
-# Load environment variables
+# 환경변수 불러오기
 load_dotenv()
 
-# Slack App 초기화
+# Slack 초기화
 slack_app = App(
     token=os.environ["SLACK_BOT_TOKEN"],
     signing_secret=os.environ["SLACK_SIGNING_SECRET"]
 )
 
-# Flask 서버
 flask_app = Flask(__name__)
 handler = SlackRequestHandler(slack_app)
 
-# 감지 타겟
-KEYWORD = "허은석"
-THRESHOLD = 5
-WINDOW_SECONDS = 300  # 5분
+# 키워드 → 알림 메시지 (실제 멘션 포함)
+KEYWORDS = {
+    "apollo.builtin.one": "<@U04LSHPDC03> One Agent 에러 확인 문의드립니다.",
+    "liner": "<@U06ECTJLK9P> liner 에러 확인 문의드립니다.",
+    "music": "<@U04LSM6SCLS> 뮤직 에러 확인 문의드립니다.",
+    "rtzr_api": "<@U04M5AD6X7B>, <@U04LSHJ7S91> 리턴제로 API 에러 확인 문의드립니다."
+}
 
-# 메시지 타임스탬프를 저장할 큐
-message_times = deque()
+# 설정
+KEYWORD_WINDOW_SECONDS = 180  # 3분
+BOT_COOLDOWN_SECONDS = 300    # 5분
+
+# 키워드 별 감지 시간 큐
+keyword_timestamps = defaultdict(deque)
+
+# 마지막 발언 시간
+last_bot_response_time = 0
 
 @slack_app.event("message")
-def handle_message_events(body, logger, say):
-    try:
-        text = body["event"].get("text", "")
-        ts = float(body["event"]["ts"])
+def handle_message_events(body, say, logger):
+    global last_bot_response_time
 
-        if KEYWORD in text:
-            message_times.append(ts)
-            logger.info(f"'{KEYWORD}' 감지됨 at {ts}. 전체 기록: {len(message_times)}")
+    text = body["event"].get("text", "")
+    if not text:
+        return
 
-            # 오래된 메시지 제거
-            while message_times and time.time() - message_times[0] > WINDOW_SECONDS:
-                message_times.popleft()
+    lowercase_text = text.lower()
+    now = time.time()
 
-            if len(message_times) >= THRESHOLD:
-                say("⚠️ '허은석'이 5분 내 5회 이상 감지되었습니다. 조치하세요.")
-                message_times.clear()  # 경고 후 초기화
+    for keyword, alert_message in KEYWORDS.items():
+        if keyword in lowercase_text:
+            queue = keyword_timestamps[keyword]
+            queue.append(now)
 
-    except Exception as e:
-        logger.error(f"에러 발생: {e}")
+            # 오래된 항목 제거
+            while queue and now - queue[0] > KEYWORD_WINDOW_SECONDS:
+                queue.popleft()
 
-# Slack 엔드포인트 라우팅
+            # 트리거 조건 만족
+            if len(queue) >= 5:
+                if now - last_bot_response_time >= BOT_COOLDOWN_SECONDS:
+                    say(f"⚠️ {alert_message}")
+                    logger.info(f"[ALERT] {keyword} 감지됨 → 메시지 전송: {alert_message}")
+                    last_bot_response_time = now
+                    queue.clear()
+                else:
+                    logger.info(f"[SKIP] 봇 쿨다운 중 → {keyword} 감지되었지만 메시지 생략")
+
 @flask_app.route("/slack/events", methods=["POST"])
 def slack_events():
     return handler.handle(request)
