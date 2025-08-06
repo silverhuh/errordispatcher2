@@ -22,7 +22,7 @@ handler = SlackRequestHandler(slack_app)
 KEYWORDS = {
     "liner": "<@U06ECTJLK9P>님, liner 에러 확인 문의드립니다.",
     "music": "<@U04LSM6SCLS>님, 뮤직 에러 확인 문의드립니다.",
-    "rtzr_api": "<@U04M5AD6X7B>님, <@U04LSHJ7S91>님, 리턴제로 API 에러 확인 문의드립니다."
+    "rtzr_api": "<@U04M5AD6X7B>님, <@U04LSHJ7S91>님, 리턴제로 API 에러 확인 문의드립니다.",
     "adotbtv": "<@U04LSHQMADR>님, <@U04LC5FQJP9>님, 에이닷 btv 에러 확인 문의드립니다."
 }
 
