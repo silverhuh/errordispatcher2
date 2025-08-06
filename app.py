@@ -62,7 +62,7 @@ def handle_message_events(body, say, logger):
 
     # 🛠️ say 래퍼: 모든 메시지에 cc 문구를 추가
     def post(msg: str):
-        say(f"{msg}\n\ncc. @U04MGC3BFCY, @U04M5AGSF17")
+        say(f"{msg}\n\n(cc. <@U04MGC3BFCY>, <@U04M5AGSF17>)")
 
     # 1) 채널 제어 명령
     if lowercase_text == MUTE_CMD:
