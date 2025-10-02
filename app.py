@@ -146,7 +146,7 @@ def on_message(body, say, client, logger):
     if trigger("rtzr_api",       f"{MENTION_KIMH}, {MENTION_KIMJ}, 리턴제로 API 에러 확인 문의드립니다. (cc. {MENTION_HEO}, {MENTION_CHAE})"): return
     if trigger("music",          f"{MENTION_SONG}, 뮤직 에러 확인 문의드립니다. (cc. {MENTION_HEO}, {MENTION_CHAE})"): return
     if trigger("btv",            f"{MENTION_SHIN}, 에이닷 btv 에러 확인 문의드립니다. (cc. {MENTION_HEO}, {MENTION_CHAE})"): return
-    if trigger("apollo.builtin.one", f"{MENTION_HEO}, One Agent 에러 확인 문의드립니다. (cc. {MENTION_CHAE}, {MENTION_YANG})"): return
+    if trigger("apollo.builtin.one", f"{MENTION_HEO}, One Agent 에러 확인 문의드립니다. (cc. {MENTION_CHAE})"): return
     if trigger("오류 감지",       f"{MENTION_HEO}, PET 및 LLM 연동 오류 확인 문의드립니다. (cc. {MENTION_CHAE})"): return
 
     # ── 8) A채널 버스트 (10분/20회) + 최근 10분간 봇 발언 無
