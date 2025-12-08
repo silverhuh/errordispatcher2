@@ -25,6 +25,7 @@ RTZR_STT_SKT_ALERT_CH = "C091J89DQF7"       # rtzr-stt-skt-alert
 EXT_GIP_REPAIRING_CH = "C06L4C7HUCF"        # ext_gip_repairing
 LINER_ADOT_CH = "C08DRU0U7CK"               # liner-adot
 ERROR_AX_CH = "C09SQLEU8N8"                 # error_A.X
+TEST_ALERT_CH = "C092DJVHVPY"               # Test용 채널
 
 # 유저 멘션 ID
 MENTION_HEO_EUNSEOK = "<@U04MGC3BFCY>"
@@ -173,7 +174,7 @@ RULES = [
             },
         ],
     },
-    # svc_watchtwer / MODEL_LABEL: GPT 3분 이내 5회 이상
+    # svc_watchtower / MODEL_LABEL: GPT 3분 이내 5회 이상
     {
         "name": "GPT",
         "channel": SVC_WATCHTOWER_CH,
@@ -301,6 +302,20 @@ RULES = [
             },
         ],
     },
+    # C092DJVHVPY / Test 3분 이내 5회 이상
+    {
+        "name": "TEST",
+        "channel": TEST_ALERT_CH,
+        "keyword": "Test",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": TEST_ALERT_CH,
+                "text": "장애 Test",
+                "include_log": False,
+            },
+        ],
+    },
 ]
 
 # --------------------------------------------------------
@@ -384,7 +399,7 @@ def process_message(event):
 
 # --------------------------------------------------------
 # Slack 이벤트 핸들러
-#   → 여기서 !mute / !unmute 처리 추가
+#   → 여기서 !mute / !unmute 처리
 # --------------------------------------------------------
 @app.event("message")
 def handle_message_events(body, say, logger):
