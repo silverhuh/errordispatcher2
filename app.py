@@ -17,7 +17,6 @@ ALERT_PREFIX = "⚠️ "
 # --------------------------------------------------------
 # 채널/유저 ID 설정
 # --------------------------------------------------------
-# 채널 ID는 Slack에서 채널 들어가면 URL에 나오는 마지막 부분(CXXXXXXXX 형식)
 SVC_WATCHTOWER_CH = "C04M1UCMCFQ"           # svc_watchtower
 SVC_TMAP_DIV_CH = "C09BY22G12Q"             # svc_watchtower_tmap_divergence
 SVC_BTV_DIV_CH = "C077QK6NB4K"              # svc_watchtower_btv_divergence
@@ -72,7 +71,6 @@ is_muted = False
 # --------------------------------------------------------
 # 규칙 정의
 # --------------------------------------------------------
-# 각 규칙: 특정 채널에서 keyword가 n회 이상(3분 이내) 발생하면, 여러 채널로 알림 발송
 RULES = [
     # svc_watchtower / RTZR_API 3분 이내 5회 이상
     {
@@ -386,9 +384,12 @@ def process_message(event):
 
 # --------------------------------------------------------
 # Slack 이벤트 핸들러
+#   → 여기서 !mute / !unmute 처리 추가
 # --------------------------------------------------------
 @app.event("message")
-def handle_message_events(body, logger):
+def handle_message_events(body, say, logger):
+    global is_muted, last_alert_sent_at, message_window
+
     event = body.get("event", {})
     # 봇이 보낸 메시지면 무시
     if event.get("subtype") == "bot_message":
@@ -396,6 +397,23 @@ def handle_message_events(body, logger):
     if event.get("bot_id"):
         return
 
+    text = (event.get("text") or "").strip()
+
+    # 1) 채팅에서 직접 !mute 입력 시 봇 발언 제한
+    if text == "!mute":
+        is_muted = True
+        say("🔇 알림 봇이 *mute* 상태가 되었습니다. ('!unmute' 또는 `/unmute`로 해제 가능)")
+        return
+
+    # 2) 채팅에서 직접 !unmute 입력 시 봇 발언 재개 + 카운트/쿨다운 초기화
+    if text == "!unmute":
+        is_muted = False
+        last_alert_sent_at = 0.0
+        message_window.clear()
+        say("🔔 알림 봇 *mute 해제* 되었습니다. (카운트 및 쿨다운도 초기화)")
+        return
+
+    # 나머지 일반 메시지는 기존 감지 로직으로 처리
     try:
         process_message(event)
     except Exception as e:
@@ -403,23 +421,23 @@ def handle_message_events(body, logger):
 
 
 # --------------------------------------------------------
-# /mute, /unmute 명령어
+# /mute, /unmute Slash Command (기존 기능 유지)
 # --------------------------------------------------------
 @app.command("/mute")
 def handle_mute(ack, respond, command):
     """
-    봇 발화 전체 mute
+    봇 발화 전체 mute (Slash Command)
     """
     global is_muted
     ack()
     is_muted = True
-    respond("🔇 알림 봇이 *mute* 상태가 되었습니다. (/unmute로 해제 가능)")
+    respond("🔇 알림 봇이 *mute* 상태가 되었습니다. (/unmute 또는 '!unmute'로 해제 가능)")
 
 
 @app.command("/unmute")
 def handle_unmute(ack, respond, command):
     """
-    봇 발화 다시 활성화
+    봇 발화 다시 활성화 (Slash Command)
     """
     global is_muted, last_alert_sent_at, message_window
     ack()
