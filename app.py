@@ -57,7 +57,7 @@ MENTION_SYC = "<@U04LSHQMADR>"
 # 공통 설정
 # --------------------------------------------------------
 WINDOW_SECONDS = 180  # 3분
-ALERT_COOLDOWN_SECONDS = 600  # 10분
+ALERT_COOLDOWN_SECONDS = 240  # 4분
 
 message_window = defaultdict(deque)
 last_message_by_rule = {}
