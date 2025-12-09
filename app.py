@@ -57,13 +57,14 @@ MENTION_SYC = "<@U04LSHQMADR>"
 # 공통 설정
 # --------------------------------------------------------
 WINDOW_SECONDS = 180  # 3분
-ALERT_COOLDOWN_SECONDS = 300  # 5분
+ALERT_COOLDOWN_SECONDS = 600  # 10분
 
 message_window = defaultdict(deque)
 last_message_by_rule = {}
 
 last_alert_sent_at = 0
 is_muted = False
+
 
 # --------------------------------------------------------
 # 규칙 정의
@@ -99,7 +100,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} 노트 에러(PET_API) 5회 이상 감지중! {MENTION_KJH}, {MENTION_KHR} 확인 부탁드립니다. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} 노트 에러(PET_API) 감지됨! {MENTION_KJH}, {MENTION_KHR} 확인 바랍니다. (cc. {MENTION_HEO})",
                 "include_log": False,
             },
         ],
@@ -114,7 +115,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} One Agent 에러 발생. (cc. {MENTION_HEO})",
                 "include_log": False,
             },
         ],
@@ -129,7 +130,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Perplexity 에러가 감지되었습니다. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} Perplexity 에러 감지됨. (cc. {MENTION_HEO})",
                 "include_log": False,
             },
             {
@@ -149,7 +150,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Claude 에러가 감지되었습니다. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} Claude 에러 감지됨. (cc. {MENTION_HEO})",
                 "include_log": False,
             },
             {
@@ -169,7 +170,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} GPT 에러가 감지되었습니다. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} GPT 에러 감지됨. (cc. {MENTION_HEO})",
                 "include_log": False,
             },
             {
@@ -270,7 +271,7 @@ RULES = [
         ],
     },
 
-    # test
+    # test 채널 테스트용
     {
         "name": "TEST",
         "channel": TEST_ALERT_CH,
@@ -279,15 +280,16 @@ RULES = [
         "notify": [
             {
                 "channel": TEST_ALERT_CH,
-                "text": "❗ 테스트 알림: test 감지됨.",
+                "text": f"{ALERT_PREFIX} 테스트 알림: test 감지됨.",
                 "include_log": False,
             },
         ],
-    },
+    }
 ]
 
+
 # --------------------------------------------------------
-# 함수 정의
+# 헬퍼 함수
 # --------------------------------------------------------
 def prune_old_events(key, now_ts):
     dq = message_window[key]
@@ -296,7 +298,7 @@ def prune_old_events(key, now_ts):
 
 
 def can_send_alert(now_ts):
-    global last_alert_sent_at, is_muted
+    global is_muted, last_alert_sent_at
     if is_muted:
         return False
     if now_ts - last_alert_sent_at < ALERT_COOLDOWN_SECONDS:
@@ -316,7 +318,7 @@ def send_alert_for_rule(rule, event):
     for action in rule["notify"]:
         text = action["text"]
 
-        if action["include_log"]:
+        if action.get("include_log"):
             text += f"\n\n```{original_text}```"
 
         app.client.chat_postMessage(
@@ -355,19 +357,18 @@ def process_message(event):
 
 
 # --------------------------------------------------------
-# 메시지 이벤트 핸들러
+# Slack 메시지 이벤트
 # --------------------------------------------------------
 @app.event("message")
 def handle_message(body, say):
     event = body.get("event", {})
 
-    # 봇 메시지 무시
-    if event.get("subtype") == "bot_message":
-        return
+    # 🔥 변경: bot 메시지도 포함하여 전부 감지 → 삭제함
+    # if event.get("subtype") == "bot_message": return
+    # if event.get("bot_id"): return
 
     text = (event.get("text") or "").strip()
 
-    # mute
     global is_muted, last_alert_sent_at, message_window
 
     if text == "!mute":
@@ -393,7 +394,7 @@ def slash_mute(ack, respond):
     global is_muted
     ack()
     is_muted = True
-    respond("🔇 Bot mute 상태 설정 완료")
+    respond("🔇 Bot mute 설정 완료")
 
 
 @app.command("/unmute")
@@ -403,7 +404,7 @@ def slash_unmute(ack, respond):
     is_muted = False
     last_alert_sent_at = 0
     message_window.clear()
-    respond("🔔 Bot unmute 완료 (3분 카운트 초기화)")
+    respond("🔔 Bot unmute 완료 (카운트 초기화)")
 
 
 # --------------------------------------------------------
