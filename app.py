@@ -309,7 +309,7 @@ RULES = [
     {
         "name": "TEST",
         "channel": TEST_ALERT_CH,
-        "keyword": "test",
+        "keyword": "builtin.one",
         "threshold": 3,
         "notify": [
             {
@@ -339,7 +339,7 @@ RULES = [
                 "channel": OPEN_MONITORING_CH,
                 "text": (
                     f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. "
-                    f"{MENTION_PYH}님, {MENTION_NSH}님, {MENTION_LJH}님 "
+                    f"<!here>\n"
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
