@@ -24,50 +24,60 @@ LINER_ADOT_CH = "C08DRU0U7CK"
 ERROR_AX_CH = "C09SQLEU8N8"
 TEST_ALERT_CH = "C092DJVHVPY"
 
+# TODO: #에이닷_오픈_모니터링 채널 ID로 교체
+OPEN_MONITORING_CH = "C09BLHZAPSS"   # #에이닷_오픈_모니터링
+
 # --------------------------------------------------------
 # 멘션 ID 정의
 # --------------------------------------------------------
-MENTION_HEO = "<@U04MGC3BFCY>"
+MENTION_HEO = "<@U04MGC3BFCY>"   # 허은석님
 
-MENTION_KDW = "<@U03H53S4B2B>"
-MENTION_NJK = "<@U03L9HG1Q49>"
-MENTION_JJY = "<@U03J9DUADJ4>"
+MENTION_KDW = "<@U03H53S4B2B>"   # 김동우님
+MENTION_NJK = "<@U03L9HG1Q49>"   # 노정규님
+MENTION_JJY = "<@U03J9DUADJ4>"   # 정주영님
 
-MENTION_KJH = "<@U04M5AFPQHF>"
-MENTION_KHR = "<@U04LSM49TR8>"
+MENTION_KJH = "<@U04M5AFPQHF>"   # 김지환님
+MENTION_KHR = "<@U04LSM49TR8>"   # 김학래님
 
-MENTION_KYH = "<@U063M2LKNA1>"
-MENTION_GJH = "<@U063M2QM89K>"
-MENTION_YYJ = "<@U04LSHPDC03>"
-MENTION_PJY = "<@U05319QDEET>"
+MENTION_KYH = "<@U063M2LKNA1>"   # 김용현님
+MENTION_GJH = "<@U063M2QM89K>"   # 구진현님
+MENTION_YYJ = "<@U04LSHPDC03>"   # 양영준님
+MENTION_PJY = "<@U05319QDEET>"   # 박지윤님
 
-MENTION_KAI = "<@U06NSJVR0GH>"
-MENTION_BSR = "<@U08DS680G7L>"
+MENTION_KAI = "<@U06NSJVR0GH>"   # Kai님
+MENTION_BSR = "<@U08DS680G7L>"   # 백승렬님
 
-MENTION_KSW = "<@U04MGC174HE>"
-MENTION_LYS = "<@U04LV5K4PA8>"
+MENTION_KSW = "<@U04MGC174HE>"   # 김성완님
+MENTION_LYS = "<@U04LV5K4PA8>"   # 이영순님
 
-MENTION_GMS = "<@U04M5A7194H>"
-MENTION_KTH = "<@U04LPNR61BP>"
-MENTION_JUR = "<@U05BK5TSBRV>"
+MENTION_GMS = "<@U04M5A7194H>"   # 고민석님
+MENTION_KTH = "<@U04LPNR61BP>"   # 강태희님
+MENTION_JUR = "<@U05BK5TSBRV>"   # 조욱래님
 
-MENTION_SYC = "<@U04LSHQMADR>"
+MENTION_SYC = "<@U04LSHQMADR>"   # 신윤철님
+
+MENTION_PYH = "<@U09AS8FCQD9>"   # 박윤호님
+MENTION_NSH = "<@U01RWQ5QLER>"   # 남소희님
+MENTION_LJH = "<@UF7ELUSJV>"   # 이재한님
+
+MENTION_KHJ = "<@U04LC55FDN3>"   # 김현준님
+MENTION_PJH = "<@U04LL3F11C6>"   # 박지형님
 
 # --------------------------------------------------------
 # 공통 설정
 # --------------------------------------------------------
-WINDOW_SECONDS = 180  # 3분
-ALERT_COOLDOWN_SECONDS = 240  # 4분
+WINDOW_SECONDS = 180          # 3분
+ALERT_COOLDOWN_SECONDS = 240  # 4분 (전역 쿨다운)
 
-message_window = defaultdict(deque)
-last_message_by_rule = {}
+message_window = defaultdict(deque)  # (channel, rule_name) -> deque[timestamp]
+last_message_by_rule = {}            # (channel, rule_name) -> last event
 
 last_alert_sent_at = 0
 is_muted = False
 
 
 # --------------------------------------------------------
-# 규칙 정의
+# 규칙 정의 (keyword 기반)
 # --------------------------------------------------------
 RULES = [
 
@@ -80,12 +90,19 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
                 "include_log": False,
             },
             {
                 "channel": RTZR_STT_SKT_ALERT_CH,
-                "text": f"{ALERT_PREFIX} RTZR_API 5회 이상 감지중! {MENTION_KDW}, {MENTION_NJK}, {MENTION_JJY} 확인 부탁드립니다. (cc. {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} RTZR_API 5회 이상 감지중! "
+                    f"{MENTION_KDW}님, {MENTION_NJK}님, {MENTION_JJY}님 확인 문의드립니다. "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
                 "include_log": False,
             },
         ],
@@ -100,7 +117,11 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} 노트 에러(PET_API) 감지됨! {MENTION_KJH}, {MENTION_KHR} 확인 바랍니다. (cc. {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} 노트 에러(PET_API) 5회 이상 감지중! "
+                    f"{MENTION_KJH}님, {MENTION_KHR}님 확인 문의드립니다. "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
                 "include_log": False,
             },
         ],
@@ -115,7 +136,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} One Agent 에러 발생. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
         ],
@@ -130,12 +151,16 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Perplexity 에러 감지됨. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} Perplexity 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
-                "text": f"{ALERT_PREFIX} Perplexity 에러 발생! {MENTION_KYH}, {MENTION_GJH} (cc. {MENTION_YYJ}, {MENTION_PJY}, {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} Perplexity 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                ),
                 "include_log": True,
             },
         ],
@@ -150,12 +175,16 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Claude 에러 감지됨. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} Claude 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
-                "text": f"{ALERT_PREFIX} Claude 에러 발생! {MENTION_KYH}, {MENTION_GJH} (cc. {MENTION_YYJ}, {MENTION_PJY}, {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} Claude 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                ),
                 "include_log": True,
             },
         ],
@@ -170,12 +199,16 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} GPT 에러 감지됨. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} GPT 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
-                "text": f"{ALERT_PREFIX} GPT 에러 발생! {MENTION_KYH}, {MENTION_GJH} (cc. {MENTION_YYJ}, {MENTION_PJY}, {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} GPT 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                ),
                 "include_log": True,
             },
         ],
@@ -190,12 +223,16 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Gemini 에러 감지됨. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} Gemini 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
-                "text": f"{ALERT_PREFIX} Gemini 에러 발생! {MENTION_KYH}, {MENTION_GJH} (cc. {MENTION_YYJ}, {MENTION_PJY}, {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} Gemini 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                ),
                 "include_log": True,
             },
         ],
@@ -210,12 +247,16 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Liner 에러 감지됨. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} Liner 모델 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": LINER_ADOT_CH,
-                "text": f"{ALERT_PREFIX} Liner 에러 발생! {MENTION_KAI}, {MENTION_BSR} (cc. {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} Liner 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KAI}님, {MENTION_BSR}님 "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
                 "include_log": True,
             },
         ],
@@ -230,32 +271,21 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} A.X 에러 감지됨. (cc. {MENTION_HEO})",
+                "text": f"{ALERT_PREFIX} A.X 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": ERROR_AX_CH,
-                "text": f"{ALERT_PREFIX} A.X 에러 발생! {MENTION_KSW}, {MENTION_LYS} (cc. {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} A.X 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KSW}님, {MENTION_LYS}님 "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
                 "include_log": True,
             },
         ],
     },
-
-    # agent.tmap
-    {
-        "name": "AGENT_TMAP",
-        "channel": SVC_TMAP_DIV_CH,
-        "keyword": "agent.tmap",
-        "threshold": 5,
-        "notify": [
-            {
-                "channel": SVC_TMAP_DIV_CH,
-                "text": f"{ALERT_PREFIX} agent.tmap 에러 감지됨! {MENTION_GMS}, {MENTION_KTH} (cc. {MENTION_JUR}, {MENTION_HEO})",
-                "include_log": False,
-            },
-        ],
-    },
-
+   
     # REQUEST_ID
     {
         "name": "REQUEST_ID",
@@ -265,7 +295,11 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_BTV_DIV_CH,
-                "text": f"{ALERT_PREFIX} REQUEST_ID 에러 감지됨! {MENTION_SYC}, {MENTION_GMS} (cc. {MENTION_HEO})",
+                "text": (
+                    f"{ALERT_PREFIX} 에러가 감지되어 확인 문의드립니다. "
+                    f"{MENTION_SYC}님, {MENTION_GMS}님 "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
                 "include_log": False,
             },
         ],
@@ -284,7 +318,34 @@ RULES = [
                 "include_log": False,
             },
         ],
-    }
+    },
+
+    # API (키워드 포함 시)
+    {
+        "name": "API",
+        "channel": SVC_TMAP_DIV_CH,
+        "keyword": "API",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_TMAP_DIV_CH,
+                "text": (
+                    f"{ALERT_PREFIX} TMAP API 에러가 감지되어 티모비 담당자에게 전파하였습니다. "
+                    f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+            {
+                "channel": OPEN_MONITORING_CH,
+                "text": (
+                    f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. "
+                    f"{MENTION_PYH}님, {MENTION_NSH}님, {MENTION_LJH}님 "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+        ],
+    },
 ]
 
 
@@ -332,20 +393,17 @@ def send_alert_for_rule(rule, event):
 def process_message(event):
     channel = event.get("channel")
     text = (event.get("text") or "")
-
     now_ts = time.time()
 
+    # 1) 일반 RULES 기반 감지 (대소문자 무시)
     for rule in RULES:
-
         if channel != rule["channel"]:
             continue
 
-        # *** 대소문자 무시하여 감지 ***
         if rule["keyword"].lower() not in text.lower():
             continue
 
         key = (channel, rule["name"])
-
         prune_old_events(key, now_ts)
 
         message_window[key].append(now_ts)
@@ -355,6 +413,34 @@ def process_message(event):
             send_alert_for_rule(rule, event)
             message_window[key].clear()
 
+    # 2) API 를 포함하지 않는 메시지 카운팅 (SVC_TMAP_DIV_CH 전용)
+    if channel == SVC_TMAP_DIV_CH:
+        # "API" 문자열이 포함되지 않은 메시지
+        if "api" not in text.lower():
+            key = (channel, "TMAP_API_MISSING")
+
+            prune_old_events(key, now_ts)
+            message_window[key].append(now_ts)
+            last_message_by_rule[key] = event
+
+            if len(message_window[key]) >= 5:
+                # 전역 쿨다운 및 mute 적용을 위해 send_alert_for_rule 재사용
+                pseudo_rule = {
+                    "name": "TMAP_API_MISSING",
+                    "notify": [
+                        {
+                            "channel": SVC_TMAP_DIV_CH,
+                            "text": (
+                                f"{ALERT_PREFIX} 에러가 감지되어 확인 문의드립니다. "
+                                f"{MENTION_KHJ}님, {MENTION_PJH}님 (cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                            ),
+                            "include_log": False,
+                        }
+                    ],
+                }
+                send_alert_for_rule(pseudo_rule, event)
+                message_window[key].clear()
+
 
 # --------------------------------------------------------
 # Slack 메시지 이벤트
@@ -363,14 +449,12 @@ def process_message(event):
 def handle_message(body, say):
     event = body.get("event", {})
 
-    # 🔥 변경: bot 메시지도 포함하여 전부 감지 → 삭제함
-    # if event.get("subtype") == "bot_message": return
-    # if event.get("bot_id"): return
-
+    # 봇/사람 구분 없이 모든 메시지 감지 (자기 자신 포함)
     text = (event.get("text") or "").strip()
 
     global is_muted, last_alert_sent_at, message_window
 
+    # 수동 mute/unmute
     if text == "!mute":
         is_muted = True
         say("🔇 Bot mute 상태입니다.")
