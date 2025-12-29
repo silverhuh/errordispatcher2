@@ -6,11 +6,16 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 # --------------------------------------------------------
-# Slack App 초기화 (Railway 환경변수 사용)
+# Slack App 초기화
 # --------------------------------------------------------
-app = App(token=os.environ["SLACK_BOT_TOKEN"])
+SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
+SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN")
+if not SLACK_BOT_TOKEN or not SLACK_APP_TOKEN:
+    raise RuntimeError("Missing SLACK_BOT_TOKEN or SLACK_APP_TOKEN in environment variables.")
 
-ALERT_PREFIX = "❗"   # 메시지 앞 아이콘
+app = App(token=SLACK_BOT_TOKEN)
+
+ALERT_PREFIX = "❗"
 
 # --------------------------------------------------------
 # 채널 ID 정의
@@ -23,69 +28,54 @@ EXT_GIP_REPAIRING_CH = "C06L4C7HUCF"
 LINER_ADOT_CH = "C08DRU0U7CK"
 ERROR_AX_CH = "C0A2ZM3EMBN"
 TEST_ALERT_CH = "C092DJVHVPY"
-
-# TODO: #에이닷_오픈_모니터링 채널 ID로 교체
-OPEN_MONITORING_CH = "C09BLHZAPSS"   # #에이닷_오픈_모니터링
+OPEN_MONITORING_CH = "C09BLHZAPSS"
 
 # --------------------------------------------------------
 # 멘션 ID 정의
 # --------------------------------------------------------
-MENTION_HEO = "<@U04MGC3BFCY>"   # 허은석님
+MENTION_HEO = "<@U04MGC3BFCY>"
 
-MENTION_KDW = "<@U03H53S4B2B>"   # 김동우님
-MENTION_NJK = "<@U03L9HG1Q49>"   # 노정규님
-MENTION_JJY = "<@U03J9DUADJ4>"   # 정주영님
+MENTION_KDW = "<@U03H53S4B2B>"
+MENTION_NJK = "<@U03L9HG1Q49>"
+MENTION_JJY = "<@U03J9DUADJ4>"
 
-MENTION_KJH = "<@U04M5AFPQHF>"   # 김지환님
-MENTION_KHR = "<@U04LSM49TR8>"   # 김학래님
+MENTION_KJH = "<@U04M5AFPQHF>"
+MENTION_KHR = "<@U04LSM49TR8>"
 
-MENTION_KYH = "<@U063M2LKNA1>"   # 김용현님
-MENTION_GJH = "<@U063M2QM89K>"   # 구진현님
-MENTION_YYJ = "<@U04LSHPDC03>"   # 양영준님
-MENTION_PJY = "<@U05319QDEET>"   # 박지윤님
+MENTION_KYH = "<@U063M2LKNA1>"
+MENTION_GJH = "<@U063M2QM89K>"
+MENTION_YYJ = "<@U04LSHPDC03>"
+MENTION_PJY = "<@U05319QDEET>"
 
-MENTION_KAI = "<@U06NSJVR0GH>"   # Kai님
-MENTION_BSR = "<@U08DS680G7L>"   # 백승렬님
+MENTION_KAI = "<@U06NSJVR0GH>"
+MENTION_BSR = "<@U08DS680G7L>"
 
-MENTION_KSW = "<@U04MGC174HE>"   # 김성완님
-MENTION_LYS = "<@U04LV5K4PA8>"   # 이영순님
+MENTION_KSW = "<@U04MGC174HE>"
+MENTION_LYS = "<@U04LV5K4PA8>"
 
-MENTION_GMS = "<@U04M5A7194H>"   # 고민석님
-MENTION_KTH = "<@U04LPNR61BP>"   # 강태희님
-MENTION_JUR = "<@U05BK5TSBRV>"   # 조욱래님
+MENTION_GMS = "<@U04M5A7194H>"
+MENTION_JUR = "<@U05BK5TSBRV>"
 
-MENTION_SYC = "<@U04LSHQMADR>"   # 신윤철님
+MENTION_SYC = "<@U04LSHQMADR>"
 
-MENTION_PYH = "<@U09AS8FCQD9>"   # 박윤호님
-MENTION_NSH = "<@U01RWQ5QLER>"   # 남소희님
-MENTION_LJH = "<@UF7ELUSJV>"     # 이재한님
-
-MENTION_KHJ = "<@U04LC55FDN3>"   # 김현준님
-MENTION_PJH = "<@U04LL3F11C6>"   # 박지형님
+MENTION_KHJ = "<@U04LC55FDN3>"
+MENTION_PJH = "<@U04LL3F11C6>"
 
 # --------------------------------------------------------
 # 공통 설정
 # --------------------------------------------------------
-WINDOW_SECONDS = 180          # 3분
-ALERT_COOLDOWN_SECONDS = 240  # 4분 (룰/채널별 쿨다운으로 적용)
+WINDOW_SECONDS = 180
+ALERT_COOLDOWN_SECONDS = 240
 
-# (channel, rule_name) -> deque[timestamp]
-message_window = defaultdict(deque)
-
-# ✅ (channel, rule_name) -> last alert timestamp
-last_alert_sent_at = defaultdict(float)
-
-# ✅ mute flag
+message_window = defaultdict(deque)          # (channel, rule) -> deque[timestamps]
+last_alert_sent_at = defaultdict(float)      # (channel, rule) -> last_alert_ts
 is_muted = False
-
-# ✅ bot user id
 BOT_USER_ID = None
 
 # --------------------------------------------------------
-# 규칙 정의 (네가 올린 RULES 그대로)
+# RULES (네 기존 RULES 그대로)
 # --------------------------------------------------------
 RULES = [
-    # RTZR_API
     {
         "name": "RTZR_API",
         "channel": SVC_WATCHTOWER_CH,
@@ -111,8 +101,6 @@ RULES = [
             },
         ],
     },
-
-    # PET_API
     {
         "name": "PET_API",
         "channel": SVC_WATCHTOWER_CH,
@@ -130,8 +118,6 @@ RULES = [
             },
         ],
     },
-
-    # builtin.one
     {
         "name": "BUILTIN_ONE",
         "channel": SVC_WATCHTOWER_CH,
@@ -145,8 +131,6 @@ RULES = [
             },
         ],
     },
-
-    # Perplexity
     {
         "name": "PERPLEXITY",
         "channel": SVC_WATCHTOWER_CH,
@@ -169,8 +153,6 @@ RULES = [
             },
         ],
     },
-
-    # Claude
     {
         "name": "CLAUDE",
         "channel": SVC_WATCHTOWER_CH,
@@ -193,8 +175,6 @@ RULES = [
             },
         ],
     },
-
-    # GPT
     {
         "name": "GPT",
         "channel": SVC_WATCHTOWER_CH,
@@ -217,8 +197,6 @@ RULES = [
             },
         ],
     },
-
-    # Gemini
     {
         "name": "GEMINI",
         "channel": SVC_WATCHTOWER_CH,
@@ -241,8 +219,6 @@ RULES = [
             },
         ],
     },
-
-    # Liner
     {
         "name": "LINER",
         "channel": SVC_WATCHTOWER_CH,
@@ -265,8 +241,6 @@ RULES = [
             },
         ],
     },
-
-    # A.X
     {
         "name": "AX",
         "channel": SVC_WATCHTOWER_CH,
@@ -289,8 +263,6 @@ RULES = [
             },
         ],
     },
-
-    # REQUEST_ID
     {
         "name": "REQUEST_ID",
         "channel": SVC_BTV_DIV_CH,
@@ -308,8 +280,6 @@ RULES = [
             },
         ],
     },
-
-    # test 채널 테스트용
     {
         "name": "TEST",
         "channel": TEST_ALERT_CH,
@@ -323,8 +293,6 @@ RULES = [
             },
         ],
     },
-
-    # API (키워드 포함 시)
     {
         "name": "API",
         "channel": SVC_TMAP_DIV_CH,
@@ -352,33 +320,34 @@ RULES = [
     },
 ]
 
-
 # --------------------------------------------------------
-# 헬퍼 함수
+# helpers
 # --------------------------------------------------------
 def init_bot_user_id():
     global BOT_USER_ID
     try:
         BOT_USER_ID = app.client.auth_test()["user_id"]
-    except Exception:
+        print(f"[BOOT] BOT_USER_ID={BOT_USER_ID}")
+    except Exception as e:
         BOT_USER_ID = None
-
+        print(f"[BOOT] auth_test failed: {repr(e)}")
 
 def prune_old_events(key, now_ts):
     dq = message_window[key]
     while dq and now_ts - dq[0] > WINDOW_SECONDS:
         dq.popleft()
 
-
 def can_send_alert(key, now_ts):
-    # key = (channel, rule_name)
     if is_muted:
         return False
-    last = last_alert_sent_at.get(key, 0)
+    last = last_alert_sent_at.get(key, 0.0)
     return (now_ts - last) >= ALERT_COOLDOWN_SECONDS
 
-
 def send_alert_for_rule(rule, event):
+    """
+    ✅ 전파 중 일부 채널 실패해도 프로세스가 죽지 않도록 방어
+    ✅ 최소 1건이라도 성공하면 쿨다운 기록
+    """
     channel = event.get("channel")
     rule_name = rule["name"]
     key = (channel, rule_name)
@@ -388,22 +357,29 @@ def send_alert_for_rule(rule, event):
         return
 
     original_text = event.get("text", "") or ""
+    sent_any = False
+    errors = []
 
     for action in rule["notify"]:
-        text = action["text"]
-        if action.get("include_log"):
-            text += f"\n\n```{original_text}```"
-        app.client.chat_postMessage(channel=action["channel"], text=text)
+        try:
+            text = action["text"]
+            if action.get("include_log"):
+                text += f"\n\n```{original_text}```"
+            app.client.chat_postMessage(channel=action["channel"], text=text)
+            sent_any = True
+        except Exception as e:
+            errors.append(f"{action.get('channel')} -> {repr(e)}")
 
-    last_alert_sent_at[key] = now_ts
-
+    if sent_any:
+        last_alert_sent_at[key] = now_ts
+    else:
+        print(f"[ALERT_FAIL] rule={rule_name} src_channel={channel} errors={errors}")
 
 def process_message(event):
     channel = event.get("channel")
     text = (event.get("text") or "")
     now_ts = time.time()
 
-    # 1) RULES 기반 감지 (대소문자 무시)
     for rule in RULES:
         if channel != rule["channel"]:
             continue
@@ -412,14 +388,13 @@ def process_message(event):
 
         key = (channel, rule["name"])
         prune_old_events(key, now_ts)
-
         message_window[key].append(now_ts)
 
         if len(message_window[key]) >= rule["threshold"]:
             send_alert_for_rule(rule, event)
             message_window[key].clear()
 
-    # 2) API 미포함 카운팅 (SVC_TMAP_DIV_CH 전용)
+    # TMAP 채널 전용: "API" 미포함 메시지 5회
     if channel == SVC_TMAP_DIV_CH and "api" not in text.lower():
         key = (channel, "TMAP_API_MISSING")
         prune_old_events(key, now_ts)
@@ -442,49 +417,52 @@ def process_message(event):
             send_alert_for_rule(pseudo_rule, event)
             message_window[key].clear()
 
-
 # --------------------------------------------------------
-# Slack 메시지 이벤트
+# Slack message event
 # --------------------------------------------------------
 @app.event("message")
 def handle_message(body, say):
     event = body.get("event", {}) or {}
 
-    # ✅ 봇/수정 메시지 등 subtype 무시
+    # subtype(수정/봇메시지 등) 무시
     if event.get("subtype") is not None:
         return
-
-    # ✅ bot 메시지 무시
+    # bot 메시지 무시
     if event.get("bot_id") is not None:
         return
-
-    # ✅ 자기 자신 메시지 무시
+    # 자기 자신 메시지 무시
     if BOT_USER_ID and event.get("user") == BOT_USER_ID:
         return
 
+    channel = event.get("channel")
     text = (event.get("text") or "")
     cmd = text.strip().lower()
 
     global is_muted
 
-    # ✅ !mute/!unmute 파싱 완화
+    # !mute / !unmute (응답은 chat_postMessage로 확실히)
     if cmd.startswith("!mute"):
         is_muted = True
-        say("🔇 Bot mute 상태입니다.")
+        try:
+            app.client.chat_postMessage(channel=channel, text="🔇 Bot mute 상태입니다.")
+        except Exception as e:
+            print(f"[MUTE_REPLY_FAIL] {repr(e)}")
         return
 
     if cmd.startswith("!unmute"):
         is_muted = False
         message_window.clear()
         last_alert_sent_at.clear()
-        say("🔔 Bot unmute 되었습니다. (카운트/쿨다운 초기화)")
+        try:
+            app.client.chat_postMessage(channel=channel, text="🔔 Bot unmute 되었습니다. (카운트/쿨다운 초기화)")
+        except Exception as e:
+            print(f"[UNMUTE_REPLY_FAIL] {repr(e)}")
         return
 
     process_message(event)
 
-
 # --------------------------------------------------------
-# Slash Commands
+# Slash commands (등록돼 있어야 작동)
 # --------------------------------------------------------
 @app.command("/mute")
 def slash_mute(ack, respond):
@@ -492,7 +470,6 @@ def slash_mute(ack, respond):
     ack()
     is_muted = True
     respond("🔇 Bot mute 설정 완료")
-
 
 @app.command("/unmute")
 def slash_unmute(ack, respond):
@@ -503,11 +480,9 @@ def slash_unmute(ack, respond):
     last_alert_sent_at.clear()
     respond("🔔 Bot unmute 완료 (카운트/쿨다운 초기화)")
 
-
 # --------------------------------------------------------
-# 실행
+# main
 # --------------------------------------------------------
 if __name__ == "__main__":
     init_bot_user_id()
-    handler = SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"])
-    handler.start()
+    SocketModeHandler(app, SLACK_APP_TOKEN).start()
