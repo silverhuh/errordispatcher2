@@ -1,28 +1,19 @@
 import os
 import time
-import uuid
-from typing import Optional
+from collections import defaultdict, deque
 
-import redis
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 # --------------------------------------------------------
-# Slack App 초기화
+# Slack App 초기화 (Railway 환경변수 사용)
 # --------------------------------------------------------
 app = App(token=os.environ["SLACK_BOT_TOKEN"])
-ALERT_PREFIX = "❗"
+
+ALERT_PREFIX = "❗"   # 메시지 앞 아이콘
 
 # --------------------------------------------------------
-# Redis 초기화
-# --------------------------------------------------------
-REDIS_URL = os.environ.get("REDIS_URL")
-if not REDIS_URL:
-    raise RuntimeError("REDIS_URL env var is required. (Railway Redis plugin needed)")
-r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
-
-# --------------------------------------------------------
-# 기존 채널/멘션/설정값 (네 코드 그대로 유지)
+# 채널 ID 정의
 # --------------------------------------------------------
 SVC_WATCHTOWER_CH = "C04M1UCMCFQ"
 SVC_TMAP_DIV_CH = "C09BY22G12Q"
@@ -32,104 +23,368 @@ EXT_GIP_REPAIRING_CH = "C06L4C7HUCF"
 LINER_ADOT_CH = "C08DRU0U7CK"
 ERROR_AX_CH = "C0A2ZM3EMBN"
 TEST_ALERT_CH = "C092DJVHVPY"
-OPEN_MONITORING_CH = "C09BLHZAPSS"
 
-MENTION_HEO = "<@U04MGC3BFCY>"
-MENTION_KDW = "<@U03H53S4B2B>"
-MENTION_NJK = "<@U03L9HG1Q49>"
-MENTION_JJY = "<@U03J9DUADJ4>"
-MENTION_KJH = "<@U04M5AFPQHF>"
-MENTION_KHR = "<@U04LSM49TR8>"
-MENTION_KYH = "<@U063M2LKNA1>"
-MENTION_GJH = "<@U063M2QM89K>"
-MENTION_YYJ = "<@U04LSHPDC03>"
-MENTION_PJY = "<@U05319QDEET>"
-MENTION_KAI = "<@U06NSJVR0GH>"
-MENTION_BSR = "<@U08DS680G7L>"
-MENTION_KSW = "<@U04MGC174HE>"
-MENTION_LYS = "<@U04LV5K4PA8>"
-MENTION_GMS = "<@U04M5A7194H>"
-MENTION_JUR = "<@U05BK5TSBRV>"
-MENTION_SYC = "<@U04LSHQMADR>"
-MENTION_KHJ = "<@U04LC55FDN3>"
-MENTION_PJH = "<@U04LL3F11C6>"
-
-WINDOW_SECONDS = 180
-ALERT_COOLDOWN_SECONDS = 240
+# TODO: #에이닷_오픈_모니터링 채널 ID로 교체
+OPEN_MONITORING_CH = "C09BLHZAPSS"   # #에이닷_오픈_모니터링
 
 # --------------------------------------------------------
-# Redis key prefix (서비스별로 유니크하게)
+# 멘션 ID 정의
 # --------------------------------------------------------
-PFX = "watchbot:adot"
-KEY_MUTE = f"{PFX}:muted"
+MENTION_HEO = "<@U04MGC3BFCY>"   # 허은석님
 
-BOT_USER_ID: Optional[str] = None
+MENTION_KDW = "<@U03H53S4B2B>"   # 김동우님
+MENTION_NJK = "<@U03L9HG1Q49>"   # 노정규님
+MENTION_JJY = "<@U03J9DUADJ4>"   # 정주영님
+
+MENTION_KJH = "<@U04M5AFPQHF>"   # 김지환님
+MENTION_KHR = "<@U04LSM49TR8>"   # 김학래님
+
+MENTION_KYH = "<@U063M2LKNA1>"   # 김용현님
+MENTION_GJH = "<@U063M2QM89K>"   # 구진현님
+MENTION_YYJ = "<@U04LSHPDC03>"   # 양영준님
+MENTION_PJY = "<@U05319QDEET>"   # 박지윤님
+
+MENTION_KAI = "<@U06NSJVR0GH>"   # Kai님
+MENTION_BSR = "<@U08DS680G7L>"   # 백승렬님
+
+MENTION_KSW = "<@U04MGC174HE>"   # 김성완님
+MENTION_LYS = "<@U04LV5K4PA8>"   # 이영순님
+
+MENTION_GMS = "<@U04M5A7194H>"   # 고민석님
+MENTION_KTH = "<@U04LPNR61BP>"   # 강태희님
+MENTION_JUR = "<@U05BK5TSBRV>"   # 조욱래님
+
+MENTION_SYC = "<@U04LSHQMADR>"   # 신윤철님
+
+MENTION_PYH = "<@U09AS8FCQD9>"   # 박윤호님
+MENTION_NSH = "<@U01RWQ5QLER>"   # 남소희님
+MENTION_LJH = "<@UF7ELUSJV>"     # 이재한님
+
+MENTION_KHJ = "<@U04LC55FDN3>"   # 김현준님
+MENTION_PJH = "<@U04LL3F11C6>"   # 박지형님
 
 # --------------------------------------------------------
-# RULES (✅ 너의 기존 RULES 리스트를 그대로 붙여넣어)
+# 공통 설정
+# --------------------------------------------------------
+WINDOW_SECONDS = 180          # 3분
+ALERT_COOLDOWN_SECONDS = 240  # 4분 (룰/채널별 쿨다운으로 적용)
+
+# (channel, rule_name) -> deque[timestamp]
+message_window = defaultdict(deque)
+
+# ✅ (channel, rule_name) -> last alert timestamp
+last_alert_sent_at = defaultdict(float)
+
+# ✅ mute flag
+is_muted = False
+
+# ✅ bot user id
+BOT_USER_ID = None
+
+# --------------------------------------------------------
+# 규칙 정의 (네가 올린 RULES 그대로)
 # --------------------------------------------------------
 RULES = [
-    # TODO: 여기에 네가 올린 RULES 블록을 그대로 붙여넣기
+    # RTZR_API
+    {
+        "name": "RTZR_API",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "RTZR_API",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": (
+                    f"{ALERT_PREFIX} 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+            {
+                "channel": RTZR_STT_SKT_ALERT_CH,
+                "text": (
+                    f"{ALERT_PREFIX} RTZR_API 5회 이상 감지중! "
+                    f"{MENTION_KDW}님, {MENTION_NJK}님, {MENTION_JJY}님 확인 문의드립니다. "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+        ],
+    },
+
+    # PET_API
+    {
+        "name": "PET_API",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "PET_API",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": (
+                    f"{ALERT_PREFIX} 노트 에러(PET_API) 5회 이상 감지중! "
+                    f"{MENTION_KJH}님, {MENTION_KHR}님 확인 문의드립니다. "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+        ],
+    },
+
+    # builtin.one
+    {
+        "name": "BUILTIN_ONE",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "builtin.one",
+        "threshold": 7,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다. (cc. {MENTION_HEO}님)",
+                "include_log": False,
+            },
+        ],
+    },
+
+    # Perplexity
+    {
+        "name": "PERPLEXITY",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "Perplexity",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": f"{ALERT_PREFIX} Perplexity 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "include_log": False,
+            },
+            {
+                "channel": EXT_GIP_REPAIRING_CH,
+                "text": (
+                    f"{ALERT_PREFIX} Perplexity 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                ),
+                "include_log": True,
+            },
+        ],
+    },
+
+    # Claude
+    {
+        "name": "CLAUDE",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "Claude",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": f"{ALERT_PREFIX} Claude 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "include_log": False,
+            },
+            {
+                "channel": EXT_GIP_REPAIRING_CH,
+                "text": (
+                    f"{ALERT_PREFIX} Claude 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                ),
+                "include_log": True,
+            },
+        ],
+    },
+
+    # GPT
+    {
+        "name": "GPT",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "MODEL_LABEL: GPT",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": f"{ALERT_PREFIX} GPT 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "include_log": False,
+            },
+            {
+                "channel": EXT_GIP_REPAIRING_CH,
+                "text": (
+                    f"{ALERT_PREFIX} GPT 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                ),
+                "include_log": True,
+            },
+        ],
+    },
+
+    # Gemini
+    {
+        "name": "GEMINI",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "Gemini",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": f"{ALERT_PREFIX} Gemini 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "include_log": False,
+            },
+            {
+                "channel": EXT_GIP_REPAIRING_CH,
+                "text": (
+                    f"{ALERT_PREFIX} Gemini 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                ),
+                "include_log": True,
+            },
+        ],
+    },
+
+    # Liner
+    {
+        "name": "LINER",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "Liner",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": f"{ALERT_PREFIX} Liner 모델 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "include_log": False,
+            },
+            {
+                "channel": LINER_ADOT_CH,
+                "text": (
+                    f"{ALERT_PREFIX} Liner 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KAI}님, {MENTION_BSR}님 "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
+                "include_log": True,
+            },
+        ],
+    },
+
+    # A.X
+    {
+        "name": "AX",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "A.X",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": f"{ALERT_PREFIX} A.X 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "include_log": False,
+            },
+            {
+                "channel": ERROR_AX_CH,
+                "text": (
+                    f"{ALERT_PREFIX} A.X 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KSW}님, {MENTION_LYS}님 "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
+                "include_log": True,
+            },
+        ],
+    },
+
+    # REQUEST_ID
+    {
+        "name": "REQUEST_ID",
+        "channel": SVC_BTV_DIV_CH,
+        "keyword": "REQUEST_ID",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_BTV_DIV_CH,
+                "text": (
+                    f"{ALERT_PREFIX} 에러가 감지되어 확인 문의드립니다. "
+                    f"{MENTION_SYC}님, {MENTION_GMS}님 "
+                    f"(cc. {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+        ],
+    },
+
+    # test 채널 테스트용
+    {
+        "name": "TEST",
+        "channel": TEST_ALERT_CH,
+        "keyword": "builtin.one",
+        "threshold": 3,
+        "notify": [
+            {
+                "channel": TEST_ALERT_CH,
+                "text": f"{ALERT_PREFIX} 테스트 알림: test 감지됨.",
+                "include_log": False,
+            },
+        ],
+    },
+
+    # API (키워드 포함 시)
+    {
+        "name": "API",
+        "channel": SVC_TMAP_DIV_CH,
+        "keyword": "API",
+        "threshold": 5,
+        "notify": [
+            {
+                "channel": SVC_TMAP_DIV_CH,
+                "text": (
+                    f"{ALERT_PREFIX} TMAP API 에러가 감지되어 티모비 담당자에게 전파하였습니다. "
+                    f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+            {
+                "channel": OPEN_MONITORING_CH,
+                "text": (
+                    f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. "
+                    f"<!here>\n"
+                    f"(cc. {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+        ],
+    },
 ]
 
+
 # --------------------------------------------------------
-# Redis helper
+# 헬퍼 함수
 # --------------------------------------------------------
-def k_events(channel: str, rule_name: str) -> str:
-    return f"{PFX}:events:{channel}:{rule_name}"
+def init_bot_user_id():
+    global BOT_USER_ID
+    try:
+        BOT_USER_ID = app.client.auth_test()["user_id"]
+    except Exception:
+        BOT_USER_ID = None
 
-def k_cooldown(channel: str, rule_name: str) -> str:
-    return f"{PFX}:cooldown:{channel}:{rule_name}"
 
-def get_muted() -> bool:
-    return r.get(KEY_MUTE) == "1"
+def prune_old_events(key, now_ts):
+    dq = message_window[key]
+    while dq and now_ts - dq[0] > WINDOW_SECONDS:
+        dq.popleft()
 
-def set_muted(value: bool):
-    if value:
-        r.set(KEY_MUTE, "1")
-    else:
-        r.delete(KEY_MUTE)
 
-def reset_state():
-    # 프리픽스만 삭제 (이 봇 전용이면 안전)
-    for k in r.scan_iter(f"{PFX}:*"):
-        r.delete(k)
-
-def can_send_alert(channel: str, rule_name: str) -> bool:
-    if get_muted():
+def can_send_alert(key, now_ts):
+    # key = (channel, rule_name)
+    if is_muted:
         return False
-    return not r.exists(k_cooldown(channel, rule_name))
+    last = last_alert_sent_at.get(key, 0)
+    return (now_ts - last) >= ALERT_COOLDOWN_SECONDS
 
-def mark_cooldown(channel: str, rule_name: str):
-    r.set(k_cooldown(channel, rule_name), "1", ex=ALERT_COOLDOWN_SECONDS)
 
-def record_and_count(channel: str, rule_name: str, now_ts: float) -> int:
-    """
-    WINDOW_SECONDS 내 발생 건수를 ZSET로 관리 (재시작/멀티 인스턴스에서도 유지)
-    """
-    k = k_events(channel, rule_name)
-    cutoff = now_ts - WINDOW_SECONDS
-
-    member = str(uuid.uuid4())
-    pipe = r.pipeline()
-    pipe.zadd(k, {member: now_ts})
-    pipe.zremrangebyscore(k, 0, cutoff)
-    pipe.zcard(k)
-    pipe.expire(k, WINDOW_SECONDS + 60)
-    _, _, cnt, _ = pipe.execute()
-    return int(cnt)
-
-def clear_events(channel: str, rule_name: str):
-    r.delete(k_events(channel, rule_name))
-
-# --------------------------------------------------------
-# Alert send
-# --------------------------------------------------------
 def send_alert_for_rule(rule, event):
     channel = event.get("channel")
     rule_name = rule["name"]
+    key = (channel, rule_name)
 
-    if not can_send_alert(channel, rule_name):
+    now_ts = time.time()
+    if not can_send_alert(key, now_ts):
         return
 
     original_text = event.get("text", "") or ""
@@ -140,35 +395,39 @@ def send_alert_for_rule(rule, event):
             text += f"\n\n```{original_text}```"
         app.client.chat_postMessage(channel=action["channel"], text=text)
 
-    mark_cooldown(channel, rule_name)
+    last_alert_sent_at[key] = now_ts
 
-# --------------------------------------------------------
-# Message processing
-# --------------------------------------------------------
+
 def process_message(event):
     channel = event.get("channel")
     text = (event.get("text") or "")
     now_ts = time.time()
 
-    # 1) 일반 RULES 기반 감지
+    # 1) RULES 기반 감지 (대소문자 무시)
     for rule in RULES:
         if channel != rule["channel"]:
             continue
         if rule["keyword"].lower() not in text.lower():
             continue
 
-        cnt = record_and_count(channel, rule["name"], now_ts)
-        if cnt >= rule["threshold"]:
-            send_alert_for_rule(rule, event)
-            clear_events(channel, rule["name"])
+        key = (channel, rule["name"])
+        prune_old_events(key, now_ts)
 
-    # 2) API 미포함 카운팅 (TMAP 채널 전용)
+        message_window[key].append(now_ts)
+
+        if len(message_window[key]) >= rule["threshold"]:
+            send_alert_for_rule(rule, event)
+            message_window[key].clear()
+
+    # 2) API 미포함 카운팅 (SVC_TMAP_DIV_CH 전용)
     if channel == SVC_TMAP_DIV_CH and "api" not in text.lower():
-        rule_name = "TMAP_API_MISSING"
-        cnt = record_and_count(channel, rule_name, now_ts)
-        if cnt >= 5:
+        key = (channel, "TMAP_API_MISSING")
+        prune_old_events(key, now_ts)
+        message_window[key].append(now_ts)
+
+        if len(message_window[key]) >= 5:
             pseudo_rule = {
-                "name": rule_name,
+                "name": "TMAP_API_MISSING",
                 "notify": [
                     {
                         "channel": SVC_TMAP_DIV_CH,
@@ -181,67 +440,74 @@ def process_message(event):
                 ],
             }
             send_alert_for_rule(pseudo_rule, event)
-            clear_events(channel, rule_name)
+            message_window[key].clear()
 
-def init_bot_user_id():
-    global BOT_USER_ID
-    BOT_USER_ID = app.client.auth_test()["user_id"]
 
 # --------------------------------------------------------
-# Slack message event
+# Slack 메시지 이벤트
 # --------------------------------------------------------
 @app.event("message")
 def handle_message(body, say):
     event = body.get("event", {}) or {}
 
-    # ✅ (1) subtype 무시 (message_changed 등)
+    # ✅ 봇/수정 메시지 등 subtype 무시
     if event.get("subtype") is not None:
         return
 
-    # ✅ (1) bot 메시지 무시
+    # ✅ bot 메시지 무시
     if event.get("bot_id") is not None:
         return
 
-    # ✅ (1) 자기 자신 메시지 무시
+    # ✅ 자기 자신 메시지 무시
     if BOT_USER_ID and event.get("user") == BOT_USER_ID:
         return
 
     text = (event.get("text") or "")
     cmd = text.strip().lower()
 
-    # ✅ (3) !mute/!unmute 파싱 완화
+    global is_muted
+
+    # ✅ !mute/!unmute 파싱 완화
     if cmd.startswith("!mute"):
-        set_muted(True)
-        say("🔇 Bot mute 상태입니다. (Redis 저장)")
+        is_muted = True
+        say("🔇 Bot mute 상태입니다.")
         return
 
     if cmd.startswith("!unmute"):
-        set_muted(False)
-        reset_state()
+        is_muted = False
+        message_window.clear()
+        last_alert_sent_at.clear()
         say("🔔 Bot unmute 되었습니다. (카운트/쿨다운 초기화)")
         return
 
     process_message(event)
 
+
 # --------------------------------------------------------
-# Slash commands (등록돼 있어야 호출됨)
+# Slash Commands
 # --------------------------------------------------------
 @app.command("/mute")
 def slash_mute(ack, respond):
+    global is_muted
     ack()
-    set_muted(True)
-    respond("🔇 Bot mute 설정 완료 (Redis 저장)")
+    is_muted = True
+    respond("🔇 Bot mute 설정 완료")
+
 
 @app.command("/unmute")
 def slash_unmute(ack, respond):
+    global is_muted
     ack()
-    set_muted(False)
-    reset_state()
+    is_muted = False
+    message_window.clear()
+    last_alert_sent_at.clear()
     respond("🔔 Bot unmute 완료 (카운트/쿨다운 초기화)")
 
+
 # --------------------------------------------------------
-# main
+# 실행
 # --------------------------------------------------------
 if __name__ == "__main__":
     init_bot_user_id()
-    SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
+    handler = SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"])
+    handler.start()
