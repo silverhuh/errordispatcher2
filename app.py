@@ -70,10 +70,13 @@ ALERT_COOLDOWN_SECONDS = 240
 message_window = defaultdict(deque)          # (channel, rule) -> deque[timestamps]
 last_alert_sent_at = defaultdict(float)      # (channel, rule) -> last_alert_ts
 is_muted = False
+
+# 내 봇 식별용
 BOT_USER_ID = None
+BOT_ID = None  # event.get("bot_id") 비교용(있으면 더 안전)
 
 # --------------------------------------------------------
-# RULES (네 기존 RULES 그대로)
+# RULES
 # --------------------------------------------------------
 RULES = [
     {
@@ -280,6 +283,7 @@ RULES = [
             },
         ],
     },
+    # 테스트
     {
         "name": "TEST",
         "channel": TEST_ALERT_CH,
@@ -293,6 +297,7 @@ RULES = [
             },
         ],
     },
+    # TMAP API
     {
         "name": "API",
         "channel": SVC_TMAP_DIV_CH,
@@ -323,25 +328,45 @@ RULES = [
 # --------------------------------------------------------
 # helpers
 # --------------------------------------------------------
-def init_bot_user_id():
-    global BOT_USER_ID
+def init_bot_identity():
+    """
+    BOT_USER_ID: 내 봇 '유저' ID (U로 시작)
+    BOT_ID: 내 봇 'bot_id' (B로 시작) - 이벤트에서 bot_id로 들어올 때 비교용
+    """
+    global BOT_USER_ID, BOT_ID
     try:
-        BOT_USER_ID = app.client.auth_test()["user_id"]
-        print(f"[BOOT] BOT_USER_ID={BOT_USER_ID}")
+        resp = app.client.auth_test()
+        BOT_USER_ID = resp.get("user_id")
+        BOT_ID = resp.get("bot_id")
+        print(f"[BOOT] BOT_USER_ID={BOT_USER_ID}, BOT_ID={BOT_ID}")
     except Exception as e:
-        BOT_USER_ID = None
+        BOT_USER_ID, BOT_ID = None, None
         print(f"[BOOT] auth_test failed: {repr(e)}")
+
 
 def prune_old_events(key, now_ts):
     dq = message_window[key]
     while dq and now_ts - dq[0] > WINDOW_SECONDS:
         dq.popleft()
 
+
 def can_send_alert(key, now_ts):
     if is_muted:
         return False
     last = last_alert_sent_at.get(key, 0.0)
     return (now_ts - last) >= ALERT_COOLDOWN_SECONDS
+
+
+def keyword_hits_in_text(keyword: str, text: str) -> int:
+    """
+    ✅ (추가1) 한 메시지 안에서 keyword가 여러 번 나오면 그 횟수만큼 카운트
+    - 대소문자 무시
+    - 단순 substring count (정교한 단어 경계는 필요하면 개선 가능)
+    """
+    if not keyword or not text:
+        return 0
+    return text.lower().count(keyword.lower())
+
 
 def send_alert_for_rule(rule, event):
     """
@@ -375,26 +400,35 @@ def send_alert_for_rule(rule, event):
     else:
         print(f"[ALERT_FAIL] rule={rule_name} src_channel={channel} errors={errors}")
 
+
 def process_message(event):
     channel = event.get("channel")
     text = (event.get("text") or "")
     now_ts = time.time()
 
+    # 1) RULES 기반 감지
     for rule in RULES:
         if channel != rule["channel"]:
             continue
-        if rule["keyword"].lower() not in text.lower():
+
+        hits = keyword_hits_in_text(rule["keyword"], text)
+        if hits <= 0:
             continue
 
         key = (channel, rule["name"])
         prune_old_events(key, now_ts)
-        message_window[key].append(now_ts)
+
+        # ✅ (추가1) 한 메시지에서 여러 번 등장하면 그 횟수만큼 timestamp 추가
+        # - hits가 너무 커서 메모리 부담이 걱정되면 min(hits, cap) 식으로 제한 가능
+        for _ in range(hits):
+            message_window[key].append(now_ts)
 
         if len(message_window[key]) >= rule["threshold"]:
             send_alert_for_rule(rule, event)
             message_window[key].clear()
 
-    # TMAP 채널 전용: "API" 미포함 메시지 5회
+    # 2) TMAP 채널 전용: "API" 미포함 메시지 5회
+    #    ✅ 여기서도 "한 메시지에 api가 여러 번"은 '미포함' 조건에 해당되지 않음
     if channel == SVC_TMAP_DIV_CH and "api" not in text.lower():
         key = (channel, "TMAP_API_MISSING")
         prune_old_events(key, now_ts)
@@ -408,7 +442,8 @@ def process_message(event):
                         "channel": SVC_TMAP_DIV_CH,
                         "text": (
                             f"{ALERT_PREFIX} 에러가 감지되어 확인 문의드립니다. "
-                            f"{MENTION_KHJ}님, {MENTION_PJH}님 (cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                            f"{MENTION_KHJ}님, {MENTION_PJH}님 "
+                            f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
                         ),
                         "include_log": False,
                     }
@@ -417,6 +452,7 @@ def process_message(event):
             send_alert_for_rule(pseudo_rule, event)
             message_window[key].clear()
 
+
 # --------------------------------------------------------
 # Slack message event
 # --------------------------------------------------------
@@ -424,14 +460,17 @@ def process_message(event):
 def handle_message(body, say):
     event = body.get("event", {}) or {}
 
-    # subtype(수정/봇메시지 등) 무시
+    # (1) 메시지 수정/삭제 등 '메시지 본문이 아닌 이벤트'는 제외 (기존 유지)
+    # 예: message_changed, message_deleted 등
     if event.get("subtype") is not None:
         return
-    # bot 메시지 무시
-    if event.get("bot_id") is not None:
-        return
-    # 자기 자신 메시지 무시
+
+    # ✅ (추가2) 다른 봇 메시지도 감지한다.
+    # 단, "내 봇이 보낸 메시지"만 무시하여 무한루프를 방지한다.
+    # - 내 봇 메시지는 user가 BOT_USER_ID이거나 bot_id가 BOT_ID인 케이스가 있음
     if BOT_USER_ID and event.get("user") == BOT_USER_ID:
+        return
+    if BOT_ID and event.get("bot_id") == BOT_ID:
         return
 
     channel = event.get("channel")
@@ -461,6 +500,7 @@ def handle_message(body, say):
 
     process_message(event)
 
+
 # --------------------------------------------------------
 # Slash commands (등록돼 있어야 작동)
 # --------------------------------------------------------
@@ -471,6 +511,7 @@ def slash_mute(ack, respond):
     is_muted = True
     respond("🔇 Bot mute 설정 완료")
 
+
 @app.command("/unmute")
 def slash_unmute(ack, respond):
     global is_muted
@@ -480,9 +521,10 @@ def slash_unmute(ack, respond):
     last_alert_sent_at.clear()
     respond("🔔 Bot unmute 완료 (카운트/쿨다운 초기화)")
 
+
 # --------------------------------------------------------
 # main
 # --------------------------------------------------------
 if __name__ == "__main__":
-    init_bot_user_id()
+    init_bot_identity()
     SocketModeHandler(app, SLACK_APP_TOKEN).start()
