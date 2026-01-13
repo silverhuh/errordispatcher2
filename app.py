@@ -83,12 +83,12 @@ RULES = [
         "name": "RTZR_API",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "RTZR_API",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
                 "text": (
-                    f"{ALERT_PREFIX} 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. "
+                    f"{ALERT_PREFIX} Test 알람입니다. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
@@ -96,8 +96,7 @@ RULES = [
             {
                 "channel": RTZR_STT_SKT_ALERT_CH,
                 "text": (
-                    f"{ALERT_PREFIX} RTZR_API 5회 이상 감지중! "
-                    f"{MENTION_KDW}님, {MENTION_NJK}님, {MENTION_JJY}님 확인 문의드립니다. "
+                    f"{ALERT_PREFIX} Test 알람입니다. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
@@ -108,13 +107,12 @@ RULES = [
         "name": "PET_API",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "PET_API",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
                 "text": (
-                    f"{ALERT_PREFIX} 노트 에러(PET_API) 5회 이상 감지중! "
-                    f"{MENTION_KJH}님, {MENTION_KHR}님 확인 문의드립니다. "
+                    f"{ALERT_PREFIX} Test 알람입니다. 노트 에러(PET_API) 감지중! "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
@@ -125,11 +123,11 @@ RULES = [
         "name": "BUILTIN_ONE",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "builtin.one",
-        "threshold": 7,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Test 알람입니다. One Agent 에러가 감지되었습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
         ],
@@ -138,19 +136,18 @@ RULES = [
         "name": "PERPLEXITY",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Perplexity",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Perplexity 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Test 알람입니다. Perplexity 에러. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Perplexity 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                    f"{ALERT_PREFIX} Test 알람입니다. "
+                    f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": True,
             },
@@ -160,19 +157,18 @@ RULES = [
         "name": "CLAUDE",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Claude",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Claude 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Test 알람입니다. Claude 에러. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Claude 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                    f"{ALERT_PREFIX} Test 알람입니다. "
+                    f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": True,
             },
@@ -182,19 +178,18 @@ RULES = [
         "name": "GPT",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "MODEL_LABEL: GPT",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} GPT 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Test 알람입니다. GPT 에러. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
                 "text": (
-                    f"{ALERT_PREFIX} GPT 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                    f"{ALERT_PREFIX} Test 알람입니다.GPT 에러. "
+                    f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": True,
             },
@@ -204,19 +199,18 @@ RULES = [
         "name": "GEMINI",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Gemini",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Gemini 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Test 알람입니다. Gemini 에러. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Gemini 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                    f"{ALERT_PREFIX} Test 알람입니다. Gemini 에러. "
+                    f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": True,
             },
@@ -226,17 +220,17 @@ RULES = [
         "name": "LINER",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Liner",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Liner 모델 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Test 알람입니다. Liner 모델 에러. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": LINER_ADOT_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Liner 에러가 발생되어 확인 문의드립니다. "
+                    f"{ALERT_PREFIX} Test 알람입니다. Liner 에러. "
                     f"{MENTION_KAI}님, {MENTION_BSR}님 "
                     f"(cc. {MENTION_HEO}님)"
                 ),
@@ -248,18 +242,17 @@ RULES = [
         "name": "AX",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "A.X",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} A.X 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Test 알람입니다. A.X 에러. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": ERROR_AX_CH,
                 "text": (
-                    f"{ALERT_PREFIX} A.X 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KSW}님, {MENTION_LYS}님 "
+                    f"{ALERT_PREFIX} Test 알람입니다. A.X 에러. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": True,
@@ -270,13 +263,12 @@ RULES = [
         "name": "REQUEST_ID",
         "channel": SVC_BTV_DIV_CH,
         "keyword": "REQUEST_ID",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_BTV_DIV_CH,
                 "text": (
-                    f"{ALERT_PREFIX} 에러가 감지되어 확인 문의드립니다. "
-                    f"{MENTION_SYC}님, {MENTION_GMS}님 "
+                    f"{ALERT_PREFIX} Test 알람입니다. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
@@ -302,21 +294,20 @@ RULES = [
         "name": "API",
         "channel": SVC_TMAP_DIV_CH,
         "keyword": "API",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_TMAP_DIV_CH,
                 "text": (
-                    f"{ALERT_PREFIX} TMAP API 에러가 감지되어 티모비 담당자에게 전파하였습니다. "
-                    f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                    f"{ALERT_PREFIX} Test 알람입니다. "
+                    f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
             },
             {
                 "channel": OPEN_MONITORING_CH,
                 "text": (
-                    f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. "
-                    f"<!here>\n"
+                    f"{ALERT_PREFIX} Test 알람입니다. TMAP API 에러. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
