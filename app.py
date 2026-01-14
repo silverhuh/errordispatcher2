@@ -426,16 +426,15 @@ def process_message(event):
         prune_old_events(key, now_ts)
         message_window[key].append(now_ts)
 
-        if len(message_window[key]) >= 5:
+        if len(message_window[key]) >= 1:
             pseudo_rule = {
                 "name": "TMAP_API_MISSING",
                 "notify": [
                     {
                         "channel": SVC_TMAP_DIV_CH,
                         "text": (
-                            f"{ALERT_PREFIX} 에러가 감지되어 확인 문의드립니다. "
-                            f"{MENTION_KHJ}님, {MENTION_PJH}님 "
-                            f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                            f"{ALERT_PREFIX} Bot 메시지 Test 입니다. 내부 원인으로 추정되는 에러 감지! "
+                            f"(cc. {MENTION_HEO}님)"
                         ),
                         "include_log": False,
                     }
