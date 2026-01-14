@@ -295,20 +295,21 @@ RULES = [
         "name": "API",
         "channel": SVC_TMAP_DIV_CH,
         "keyword": "API",
-        "threshold": 1,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_TMAP_DIV_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Test 알람입니다. "
-                    f"(cc. {MENTION_HEO}님)"
+                    f"{ALERT_PREFIX} TMAP API 에러가 감지되어 티모비 채널에 전파하였습니다. "
+                    f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
                 ),
                 "include_log": False,
             },
             {
                 "channel": OPEN_MONITORING_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Test 알람입니다. TMAP API 에러. "
+                    f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. "
+                    f"<!here>\n"
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
