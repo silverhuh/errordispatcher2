@@ -107,12 +107,13 @@ RULES = [
         "name": "PET_API",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "PET_API",
-        "threshold": 1,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Test 알람입니다. 노트 에러(PET_API) 감지중! "
+                    f"{ALERT_PREFIX} 노트 에러(PET_API) 5회 이상 감지중! "
+                    f"{MENTION_KJH}님, {MENTION_KHR}님 확인 문의드립니다. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
