@@ -124,7 +124,7 @@ RULES = [
         "name": "BUILTIN_ONE",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "builtin.one",
-        "threshold": 1,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
