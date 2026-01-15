@@ -64,7 +64,7 @@ MENTION_PJH = "<@U04LL3F11C6>"
 # --------------------------------------------------------
 # 공통 설정
 # --------------------------------------------------------
-WINDOW_SECONDS = 180
+WINDOW_SECONDS = 240
 ALERT_COOLDOWN_SECONDS = 240
 
 message_window = defaultdict(deque)          # (channel, rule) -> deque[timestamps]
@@ -140,7 +140,7 @@ RULES = [
         "name": "PERPLEXITY",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Perplexity",
-        "threshold": 5,
+        "threshold": 4,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -162,7 +162,7 @@ RULES = [
         "name": "CLAUDE",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Claude",
-        "threshold": 5,
+        "threshold": 4,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -184,7 +184,7 @@ RULES = [
         "name": "GPT",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "MODEL_LABEL: GPT",
-        "threshold": 5,
+        "threshold": 4,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -206,7 +206,7 @@ RULES = [
         "name": "GEMINI",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Gemini",
-        "threshold": 5,
+        "threshold": 4,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -250,7 +250,7 @@ RULES = [
         "name": "AX",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "A.X",
-        "threshold": 5,
+        "threshold": 4,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -272,7 +272,7 @@ RULES = [
         "name": "REQUEST_ID",
         "channel": SVC_BTV_DIV_CH,
         "keyword": "REQUEST_ID",
-        "threshold": 5,
+        "threshold": 4,
         "notify": [
             {
                 "channel": SVC_BTV_DIV_CH,
@@ -304,7 +304,7 @@ RULES = [
         "name": "API",
         "channel": SVC_TMAP_DIV_CH,
         "keyword": "API",
-        "threshold": 5,
+        "threshold": 4,
         "notify": [
             {
                 "channel": SVC_TMAP_DIV_CH,
@@ -429,14 +429,14 @@ def process_message(event):
             send_alert_for_rule(rule, event)
             message_window[key].clear()
 
-    # 2) TMAP 채널 전용: "API" 미포함 메시지 5회
+    # 2) TMAP 채널 전용: "API" 미포함 메시지 4회
     #    ✅ 여기서도 "한 메시지에 api가 여러 번"은 '미포함' 조건에 해당되지 않음
     if channel == SVC_TMAP_DIV_CH and "api" not in text.lower():
         key = (channel, "TMAP_API_MISSING")
         prune_old_events(key, now_ts)
         message_window[key].append(now_ts)
 
-        if len(message_window[key]) >= 5:
+        if len(message_window[key]) >= 4:
             pseudo_rule = {
                 "name": "TMAP_API_MISSING",
                 "notify": [
