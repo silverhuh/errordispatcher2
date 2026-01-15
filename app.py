@@ -83,12 +83,12 @@ RULES = [
         "name": "RTZR_API",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "RTZR_API",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
                 "text": (
-                    f"{ALERT_PREFIX} 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. "
+                    f"{ALERT_PREFIX} Test 메시지 : 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
@@ -96,8 +96,7 @@ RULES = [
             {
                 "channel": RTZR_STT_SKT_ALERT_CH,
                 "text": (
-                    f"{ALERT_PREFIX} RTZR_API 5회 이상 감지중! "
-                    f"{MENTION_KDW}님, {MENTION_NJK}님, {MENTION_JJY}님 확인 문의드립니다. "
+                    f"{ALERT_PREFIX} Test 메시지 입니다. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": False,
@@ -125,7 +124,7 @@ RULES = [
         "name": "BUILTIN_ONE",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "builtin.one",
-        "threshold": 5,
+        "threshold": 1,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -251,17 +250,18 @@ RULES = [
         "name": "AX",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "A.X",
-        "threshold": 1,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Test 알람입니다. A.X 에러. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} A.X 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": ERROR_AX_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Test 알람입니다. A.X 에러. "
+                    f"{ALERT_PREFIX} A.X 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_KSW}님, {MENTION_LYS}님 "
                     f"(cc. {MENTION_HEO}님)"
                 ),
                 "include_log": True,
@@ -290,7 +290,7 @@ RULES = [
         "name": "TEST",
         "channel": TEST_ALERT_CH,
         "keyword": "builtin.one",
-        "threshold": 3,
+        "threshold": 2,
         "notify": [
             {
                 "channel": TEST_ALERT_CH,
