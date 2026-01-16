@@ -64,11 +64,14 @@ MENTION_PJH = "<@U04LL3F11C6>"
 # --------------------------------------------------------
 # 공통 설정
 # --------------------------------------------------------
-WINDOW_SECONDS = 240
-ALERT_COOLDOWN_SECONDS = 240
+WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
 
-message_window = defaultdict(deque)          # (channel, rule) -> deque[timestamps]
-last_alert_sent_at = defaultdict(float)      # (channel, rule) -> last_alert_ts
+# ✅ 전역 발언 제한: 5분 동안 2회
+GLOBAL_RATE_WINDOW_SECONDS = 300
+GLOBAL_RATE_LIMIT_COUNT = 2
+global_alert_sent_times = deque()  # bot chat_postMessage 성공 timestamps
+
+message_window = defaultdict(deque)  # (channel, rule) -> deque[timestamps]
 is_muted = False
 
 # 내 봇 식별용
@@ -128,7 +131,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                 "text": (
+                "text": (
                     f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다."
                     f"(cc. {MENTION_HEO}님)"
                 ),
@@ -352,18 +355,29 @@ def prune_old_events(key, now_ts):
         dq.popleft()
 
 
-def can_send_alert(key, now_ts):
+# ✅ 전역 발언 제한(레이트리밋) 관련 helpers
+def prune_global_alerts(now_ts: float):
+    while global_alert_sent_times and (now_ts - global_alert_sent_times[0] > GLOBAL_RATE_WINDOW_SECONDS):
+        global_alert_sent_times.popleft()
+
+
+def global_can_speak(now_ts: float) -> bool:
     if is_muted:
         return False
-    last = last_alert_sent_at.get(key, 0.0)
-    return (now_ts - last) >= ALERT_COOLDOWN_SECONDS
+    prune_global_alerts(now_ts)
+    return len(global_alert_sent_times) < GLOBAL_RATE_LIMIT_COUNT
+
+
+def global_mark_spoke(now_ts: float):
+    prune_global_alerts(now_ts)
+    global_alert_sent_times.append(now_ts)
 
 
 def keyword_hits_in_text(keyword: str, text: str) -> int:
     """
-    ✅ (추가1) 한 메시지 안에서 keyword가 여러 번 나오면 그 횟수만큼 카운트
+    한 메시지 안에서 keyword가 여러 번 나오면 그 횟수만큼 카운트
     - 대소문자 무시
-    - 단순 substring count (정교한 단어 경계는 필요하면 개선 가능)
+    - 단순 substring count
     """
     if not keyword or not text:
         return 0
@@ -373,34 +387,38 @@ def keyword_hits_in_text(keyword: str, text: str) -> int:
 def send_alert_for_rule(rule, event):
     """
     ✅ 전파 중 일부 채널 실패해도 프로세스가 죽지 않도록 방어
-    ✅ 최소 1건이라도 성공하면 쿨다운 기록
+    ✅ 전역 발언 제한: 5분 동안 2회까지만 전송
+    - "발언 1회"는 chat_postMessage 성공 1회를 의미함
+      (notify가 2채널이면 2회로 카운트)
     """
-    channel = event.get("channel")
-    rule_name = rule["name"]
-    key = (channel, rule_name)
-
     now_ts = time.time()
-    if not can_send_alert(key, now_ts):
-        return
-
     original_text = event.get("text", "") or ""
+    rule_name = rule.get("name")
+
     sent_any = False
     errors = []
 
-    for action in rule["notify"]:
+    for action in rule.get("notify", []):
+        # 전역 발언 제한 체크 (발언 직전)
+        if not global_can_speak(now_ts):
+            break
+
         try:
             text = action["text"]
             if action.get("include_log"):
                 text += f"\n\n```{original_text}```"
+
             app.client.chat_postMessage(channel=action["channel"], text=text)
+
             sent_any = True
+            global_mark_spoke(now_ts)
+
         except Exception as e:
             errors.append(f"{action.get('channel')} -> {repr(e)}")
 
-    if sent_any:
-        last_alert_sent_at[key] = now_ts
-    else:
-        print(f"[ALERT_FAIL] rule={rule_name} src_channel={channel} errors={errors}")
+    if (not sent_any) and errors:
+        src_channel = event.get("channel")
+        print(f"[ALERT_FAIL] rule={rule_name} src_channel={src_channel} errors={errors}")
 
 
 def process_message(event):
@@ -420,8 +438,7 @@ def process_message(event):
         key = (channel, rule["name"])
         prune_old_events(key, now_ts)
 
-        # ✅ (추가1) 한 메시지에서 여러 번 등장하면 그 횟수만큼 timestamp 추가
-        # - hits가 너무 커서 메모리 부담이 걱정되면 min(hits, cap) 식으로 제한 가능
+        # 한 메시지에서 여러 번 등장하면 그 횟수만큼 timestamp 추가
         for _ in range(hits):
             message_window[key].append(now_ts)
 
@@ -430,7 +447,6 @@ def process_message(event):
             message_window[key].clear()
 
     # 2) TMAP 채널 전용: "API" 미포함 메시지 4회
-    #    ✅ 여기서도 "한 메시지에 api가 여러 번"은 '미포함' 조건에 해당되지 않음
     if channel == SVC_TMAP_DIV_CH and "api" not in text.lower():
         key = (channel, "TMAP_API_MISSING")
         prune_old_events(key, now_ts)
@@ -462,14 +478,12 @@ def process_message(event):
 def handle_message(body, say):
     event = body.get("event", {}) or {}
 
-    # (1) 메시지 수정/삭제 등 '메시지 본문이 아닌 이벤트'는 제외 (기존 유지)
-    # 예: message_changed, message_deleted 등
+    # (1) 메시지 수정/삭제 등 '메시지 본문이 아닌 이벤트'는 제외
     if event.get("subtype") is not None:
         return
 
-    # ✅ (추가2) 다른 봇 메시지도 감지한다.
+    # 다른 봇 메시지도 감지한다.
     # 단, "내 봇이 보낸 메시지"만 무시하여 무한루프를 방지한다.
-    # - 내 봇 메시지는 user가 BOT_USER_ID이거나 bot_id가 BOT_ID인 케이스가 있음
     if BOT_USER_ID and event.get("user") == BOT_USER_ID:
         return
     if BOT_ID and event.get("bot_id") == BOT_ID:
@@ -481,7 +495,7 @@ def handle_message(body, say):
 
     global is_muted
 
-    # !mute / !unmute (응답은 chat_postMessage로 확실히)
+    # !mute / !unmute
     if cmd.startswith("!mute"):
         is_muted = True
         try:
@@ -493,9 +507,9 @@ def handle_message(body, say):
     if cmd.startswith("!unmute"):
         is_muted = False
         message_window.clear()
-        last_alert_sent_at.clear()
+        global_alert_sent_times.clear()  # 전역 발언 제한 카운터 초기화
         try:
-            app.client.chat_postMessage(channel=channel, text="🔔 Bot unmute 되었습니다. (카운트/쿨다운 초기화)")
+            app.client.chat_postMessage(channel=channel, text="🔔 Bot unmute 되었습니다. (카운트 초기화)")
         except Exception as e:
             print(f"[UNMUTE_REPLY_FAIL] {repr(e)}")
         return
@@ -520,8 +534,8 @@ def slash_unmute(ack, respond):
     ack()
     is_muted = False
     message_window.clear()
-    last_alert_sent_at.clear()
-    respond("🔔 Bot unmute 완료 (카운트/쿨다운 초기화)")
+    global_alert_sent_times.clear()  # 전역 발언 제한 카운터 초기화
+    respond("🔔 Bot unmute 완료 (카운트 초기화)")
 
 
 # --------------------------------------------------------
