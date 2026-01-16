@@ -143,7 +143,7 @@ RULES = [
         "name": "PERPLEXITY",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Perplexity",
-        "threshold": 5,
+        "threshold": 20,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -165,7 +165,7 @@ RULES = [
         "name": "CLAUDE",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Claude",
-        "threshold": 5,
+        "threshold": 20,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -187,7 +187,7 @@ RULES = [
         "name": "GPT",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "MODEL_LABEL: GPT",
-        "threshold": 5,
+        "threshold": 20,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -209,7 +209,7 @@ RULES = [
         "name": "GEMINI",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Gemini",
-        "threshold": 5,
+        "threshold": 20,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -253,7 +253,7 @@ RULES = [
         "name": "AX",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "A.X",
-        "threshold": 5,
+        "threshold": 10,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
