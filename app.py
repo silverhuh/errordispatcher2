@@ -86,7 +86,7 @@ RULES = [
         "name": "RTZR_API",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "RTZR_API",
-        "threshold": 1,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -143,7 +143,7 @@ RULES = [
         "name": "PERPLEXITY",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Perplexity",
-        "threshold": 4,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -165,7 +165,7 @@ RULES = [
         "name": "CLAUDE",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Claude",
-        "threshold": 4,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -187,7 +187,7 @@ RULES = [
         "name": "GPT",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "MODEL_LABEL: GPT",
-        "threshold": 4,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -209,7 +209,7 @@ RULES = [
         "name": "GEMINI",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Gemini",
-        "threshold": 4,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -231,7 +231,7 @@ RULES = [
         "name": "LINER",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Liner",
-        "threshold": 4,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -253,7 +253,7 @@ RULES = [
         "name": "AX",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "A.X",
-        "threshold": 4,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -275,7 +275,7 @@ RULES = [
         "name": "REQUEST_ID",
         "channel": SVC_BTV_DIV_CH,
         "keyword": "REQUEST_ID",
-        "threshold": 4,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_BTV_DIV_CH,
@@ -293,7 +293,7 @@ RULES = [
         "name": "TEST",
         "channel": TEST_ALERT_CH,
         "keyword": "builtin.one",
-        "threshold": 2,
+        "threshold": 5,
         "notify": [
             {
                 "channel": TEST_ALERT_CH,
@@ -307,7 +307,7 @@ RULES = [
         "name": "API",
         "channel": SVC_TMAP_DIV_CH,
         "keyword": "API",
-        "threshold": 4,
+        "threshold": 5,
         "notify": [
             {
                 "channel": SVC_TMAP_DIV_CH,
@@ -446,13 +446,13 @@ def process_message(event):
             send_alert_for_rule(rule, event)
             message_window[key].clear()
 
-    # 2) TMAP 채널 전용: "API" 미포함 메시지 4회
+    # 2) TMAP 채널 전용: "API" 미포함 메시지 5회
     if channel == SVC_TMAP_DIV_CH and "api" not in text.lower():
         key = (channel, "TMAP_API_MISSING")
         prune_old_events(key, now_ts)
         message_window[key].append(now_ts)
 
-        if len(message_window[key]) >= 4:
+        if len(message_window[key]) >= 5:
             pseudo_rule = {
                 "name": "TMAP_API_MISSING",
                 "notify": [
