@@ -228,17 +228,17 @@ RULES = [
         "name": "LINER",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Liner",
-        "threshold": 1,
+        "threshold": 4,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Test 알람입니다. Liner 모델 에러. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Liner 모델 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": LINER_ADOT_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Test 알람입니다. Liner 에러. "
+                    f"{ALERT_PREFIX} Liner 에러가 발생되어 확인 문의드립니다. "
                     f"{MENTION_KAI}님, {MENTION_BSR}님 "
                     f"(cc. {MENTION_HEO}님)"
                 ),
