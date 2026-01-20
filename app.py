@@ -68,7 +68,7 @@ WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
 
 # ✅ 전역 발언 제한: 5분 동안 1회
 GLOBAL_RATE_WINDOW_SECONDS = 300
-GLOBAL_RATE_LIMIT_COUNT = 1
+GLOBAL_RATE_LIMIT_COUNT = 0.5
 global_alert_sent_times = deque()  # bot chat_postMessage 성공 timestamps
 
 message_window = defaultdict(deque)  # (channel, rule) -> deque[timestamps]
