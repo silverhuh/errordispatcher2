@@ -1,5 +1,6 @@
 import os
 import time
+import threading
 from collections import defaultdict, deque
 
 from slack_bolt import App
@@ -69,7 +70,11 @@ WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
 # ✅ 전역 발언 제한: 5분 동안 2회
 GLOBAL_RATE_WINDOW_SECONDS = 300
 GLOBAL_RATE_LIMIT_COUNT = 2
-global_alert_sent_times = deque()  # bot chat_postMessage 성공 timestamps
+global_alert_sent_times = deque()  # chat_postMessage "성공"을 기준으로 카운트하되,
+                                  # 동시성 방지를 위해 '예약(reserve)' 방식으로 관리
+
+# ✅ 동시성(레이스 컨디션) 방어용 락
+global_rate_lock = threading.Lock()
 
 message_window = defaultdict(deque)  # (channel, rule) -> deque[timestamps]
 is_muted = False
@@ -361,16 +366,34 @@ def prune_global_alerts(now_ts: float):
         global_alert_sent_times.popleft()
 
 
-def global_can_speak(now_ts: float) -> bool:
-    if is_muted:
-        return False
-    prune_global_alerts(now_ts)
-    return len(global_alert_sent_times) < GLOBAL_RATE_LIMIT_COUNT
+def global_try_reserve(now_ts: float) -> bool:
+    """
+    ✅ 동시성(레이스) 방지:
+    - 보내기 전에 토큰을 '예약'해서, 동시에 여러 이벤트가 와도 제한이 뚫리지 않게 함
+    - 성공 시 True, 실패 시 False
+    """
+    global is_muted
+    with global_rate_lock:
+        if is_muted:
+            return False
+        prune_global_alerts(now_ts)
+        if len(global_alert_sent_times) >= GLOBAL_RATE_LIMIT_COUNT:
+            return False
+        global_alert_sent_times.append(now_ts)  # 토큰 예약(선점)
+        return True
 
 
-def global_mark_spoke(now_ts: float):
-    prune_global_alerts(now_ts)
-    global_alert_sent_times.append(now_ts)
+def global_undo_reserve(reserved_ts: float):
+    """
+    예약했는데 전송 실패하면 롤백.
+    reserved_ts와 동일한 timestamp 하나를 제거.
+    """
+    with global_rate_lock:
+        # 가장 단순/안전한 롤백: 동일 timestamp 하나를 찾아 제거
+        for i in range(len(global_alert_sent_times) - 1, -1, -1):
+            if global_alert_sent_times[i] == reserved_ts:
+                del global_alert_sent_times[i]
+                break
 
 
 def keyword_hits_in_text(keyword: str, text: str) -> int:
@@ -388,8 +411,10 @@ def send_alert_for_rule(rule, event):
     """
     ✅ 전파 중 일부 채널 실패해도 프로세스가 죽지 않도록 방어
     ✅ 전역 발언 제한: 5분 동안 2회까지만 전송
+    - 동시성(레이스) 방지를 위해, 전송 전에 토큰을 예약(reserve)
+    - 전송 실패하면 예약 토큰 롤백
     - "발언 1회"는 chat_postMessage 성공 1회를 의미함
-      (notify가 2채널이면 2회로 카운트)
+      (notify가 2채널이면 2회로 카운트)  <-- 기존 정의 유지
     """
     now_ts = time.time()
     original_text = event.get("text", "") or ""
@@ -399,8 +424,9 @@ def send_alert_for_rule(rule, event):
     errors = []
 
     for action in rule.get("notify", []):
-        # 전역 발언 제한 체크 (발언 직전)
-        if not global_can_speak(now_ts):
+        # ✅ 전송 전에 토큰 예약(선점) - 레이스 컨디션 방지
+        reserved_ts = now_ts
+        if not global_try_reserve(reserved_ts):
             break
 
         try:
@@ -411,9 +437,11 @@ def send_alert_for_rule(rule, event):
             app.client.chat_postMessage(channel=action["channel"], text=text)
 
             sent_any = True
-            global_mark_spoke(now_ts)
+            # 성공이면 예약 유지 (추가 mark 불필요)
 
         except Exception as e:
+            # 실패면 예약 토큰 롤백
+            global_undo_reserve(reserved_ts)
             errors.append(f"{action.get('channel')} -> {repr(e)}")
 
     if (not sent_any) and errors:
@@ -507,7 +535,8 @@ def handle_message(body, say):
     if cmd.startswith("!unmute"):
         is_muted = False
         message_window.clear()
-        global_alert_sent_times.clear()  # 전역 발언 제한 카운터 초기화
+        with global_rate_lock:
+            global_alert_sent_times.clear()  # 전역 발언 제한 카운터 초기화
         try:
             app.client.chat_postMessage(channel=channel, text="🔔 Bot unmute 되었습니다. (카운트 초기화)")
         except Exception as e:
@@ -534,7 +563,8 @@ def slash_unmute(ack, respond):
     ack()
     is_muted = False
     message_window.clear()
-    global_alert_sent_times.clear()  # 전역 발언 제한 카운터 초기화
+    with global_rate_lock:
+        global_alert_sent_times.clear()  # 전역 발언 제한 카운터 초기화
     respond("🔔 Bot unmute 완료 (카운트 초기화)")
 
 
