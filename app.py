@@ -1,5 +1,7 @@
 import os
 import time
+import json
+import uuid
 from collections import defaultdict, deque
 
 from slack_bolt import App
@@ -66,10 +68,10 @@ MENTION_PJH = "<@U04LL3F11C6>"
 # --------------------------------------------------------
 WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
 
-# ✅ 전역 발언 제한: 5분 동안 2회
+# ✅ 전역 발언 제한: 5분 동안 1회
 GLOBAL_RATE_WINDOW_SECONDS = 300
 GLOBAL_RATE_LIMIT_COUNT = 1
-global_alert_sent_times = deque()  # bot chat_postMessage 성공 timestamps
+global_alert_sent_times = deque()  # chat_postMessage 성공 timestamps
 
 message_window = defaultdict(deque)  # (channel, rule) -> deque[timestamps]
 is_muted = False
@@ -77,6 +79,21 @@ is_muted = False
 # 내 봇 식별용
 BOT_USER_ID = None
 BOT_ID = None  # event.get("bot_id") 비교용(있으면 더 안전)
+
+# --------------------------------------------------------
+# ✅ TEST 채널 전용 "사람 승인 후 전송" 저장소(메모리)
+# - Railway 멀티 인스턴스면 이 저장소는 공유되지 않음 (테스트용이라 OK)
+# --------------------------------------------------------
+APPROVAL_TTL_SECONDS = 600  # 10분 안에 승인/거절 없으면 만료
+pending_approvals = {}      # approval_id -> dict(payload)
+pending_approvals_order = deque()  # (created_ts, approval_id)
+
+
+def prune_pending_approvals(now_ts: float):
+    while pending_approvals_order and (now_ts - pending_approvals_order[0][0] > APPROVAL_TTL_SECONDS):
+        _, old_id = pending_approvals_order.popleft()
+        pending_approvals.pop(old_id, None)
+
 
 # --------------------------------------------------------
 # RULES
@@ -288,7 +305,7 @@ RULES = [
             },
         ],
     },
-    # 테스트
+    # ✅ 테스트(이 룰만 승인 후 전송)
     {
         "name": "TEST",
         "channel": TEST_ALERT_CH,
@@ -384,13 +401,140 @@ def keyword_hits_in_text(keyword: str, text: str) -> int:
     return text.lower().count(keyword.lower())
 
 
+# --------------------------------------------------------
+# ✅ TEST 채널 전용 승인 메시지 생성
+# --------------------------------------------------------
+APPROVE_ACTION_ID = "approve_test_alert"
+REJECT_ACTION_ID = "reject_test_alert"
+
+def build_approval_blocks(rule_name: str, src_channel: str, original_text: str, notify_summary: str, approval_id: str):
+    # 너무 길어지면 슬랙이 잘릴 수 있으니 원문은 일부만 요약 표시
+    preview = original_text.strip()
+    if len(preview) > 700:
+        preview = preview[:700] + " ... (truncated)"
+
+    return [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"*🧪 TEST 승인 대기*\n"
+                    f"- rule: `{rule_name}`\n"
+                    f"- src_channel: `{src_channel}`\n"
+                    f"- notify: {notify_summary}\n\n"
+                    f"*원문 일부*\n```{preview}```"
+                ),
+            },
+        },
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "action_id": APPROVE_ACTION_ID,
+                    "text": {"type": "plain_text", "text": "Approve"},
+                    "style": "primary",
+                    "value": approval_id,
+                },
+                {
+                    "type": "button",
+                    "action_id": REJECT_ACTION_ID,
+                    "text": {"type": "plain_text", "text": "Reject"},
+                    "style": "danger",
+                    "value": approval_id,
+                },
+            ],
+        },
+        {
+            "type": "context",
+            "elements": [
+                {"type": "mrkdwn", "text": f"approval_id: `{approval_id}` (TTL {APPROVAL_TTL_SECONDS}s)"},
+            ],
+        },
+    ]
+
+
+def send_test_approval_request(rule, event):
+    """
+    ✅ TEST_ALERT_CH에서만:
+    - 실제 전파 대신 승인 요청 메시지를 TEST 채널에 올림
+    - 승인 시 실제 전송
+    """
+    now_ts = time.time()
+    prune_pending_approvals(now_ts)
+
+    approval_id = str(uuid.uuid4())
+    rule_name = rule.get("name", "UNKNOWN")
+    src_channel = event.get("channel")
+    original_text = event.get("text", "") or ""
+    actions = rule.get("notify", []) or []
+
+    notify_summary = ", ".join([f"<#{a.get('channel')}>" for a in actions]) if actions else "(none)"
+
+    # pending 저장
+    pending_approvals[approval_id] = {
+        "created_ts": now_ts,
+        "rule_name": rule_name,
+        "src_channel": src_channel,
+        "original_text": original_text,
+        "actions": actions,
+    }
+    pending_approvals_order.append((now_ts, approval_id))
+
+    blocks = build_approval_blocks(rule_name, src_channel, original_text, notify_summary, approval_id)
+
+    # 승인 요청은 TEST 채널로
+    resp = app.client.chat_postMessage(
+        channel=TEST_ALERT_CH,
+        text=f"[TEST 승인 대기] rule={rule_name}",
+        blocks=blocks,
+    )
+
+    # 원본 메시지 업데이트용 ts 저장(선택)
+    ts = resp.get("ts")
+    pending_approvals[approval_id]["draft_ts"] = ts
+
+
+def perform_actions(actions, original_text):
+    """
+    기존 send_alert_for_rule의 전송 동작만 분리(최종 전송에 사용)
+    """
+    now_ts = time.time()
+    sent_any = False
+    errors = []
+
+    for action in actions:
+        # 전역 발언 제한 체크(발언 직전)
+        if not global_can_speak(now_ts):
+            break
+
+        try:
+            text = action["text"]
+            if action.get("include_log"):
+                text += f"\n\n```{original_text}```"
+
+            app.client.chat_postMessage(channel=action["channel"], text=text)
+
+            sent_any = True
+            global_mark_spoke(now_ts)
+
+        except Exception as e:
+            errors.append(f"{action.get('channel')} -> {repr(e)}")
+
+    return sent_any, errors
+
+
 def send_alert_for_rule(rule, event):
     """
-    ✅ 전파 중 일부 채널 실패해도 프로세스가 죽지 않도록 방어
-    ✅ 전역 발언 제한: 5분 동안 2회까지만 전송
-    - "발언 1회"는 chat_postMessage 성공 1회를 의미함
-      (notify가 2채널이면 2회로 카운트)
+    ✅ TEST 채널(TEST_ALERT_CH) 룰은 승인 후 전송
+    ✅ 나머지는 기존 즉시 전송
     """
+    # TEST 채널 + TEST 룰에 한정
+    if event.get("channel") == TEST_ALERT_CH and rule.get("name") == "TEST":
+        send_test_approval_request(rule, event)
+        return
+
     now_ts = time.time()
     original_text = event.get("text", "") or ""
     rule_name = rule.get("name")
@@ -469,6 +613,93 @@ def process_message(event):
             }
             send_alert_for_rule(pseudo_rule, event)
             message_window[key].clear()
+
+
+# --------------------------------------------------------
+# ✅ Approve / Reject 액션 핸들러
+# --------------------------------------------------------
+@app.action(APPROVE_ACTION_ID)
+def handle_approve(ack, body):
+    ack()
+    approval_id = (body.get("actions", [{}])[0].get("value") or "").strip()
+    now_ts = time.time()
+    prune_pending_approvals(now_ts)
+
+    payload = pending_approvals.pop(approval_id, None)
+    if not payload:
+        # 만료 또는 이미 처리됨
+        try:
+            app.client.chat_postEphemeral(
+                channel=TEST_ALERT_CH,
+                user=body["user"]["id"],
+                text="⚠️ 승인 대상이 만료되었거나 이미 처리되었습니다.",
+            )
+        except Exception:
+            pass
+        return
+
+    original_text = payload["original_text"]
+    actions = payload["actions"]
+    draft_ts = payload.get("draft_ts")
+
+    sent_any, errors = perform_actions(actions, original_text)
+
+    # draft 메시지 업데이트 (승인 완료 표시)
+    if draft_ts:
+        status = "✅ Approved & Sent" if sent_any else "⚠️ Approved but nothing sent (rate-limited or failed)"
+        err_text = ("\n".join(errors)) if errors else ""
+        blocks = [
+            {
+                "type": "section",
+                "text": {"type": "mrkdwn", "text": f"*{status}*\napproval_id: `{approval_id}`"},
+            }
+        ]
+        if err_text:
+            blocks.append({"type": "section", "text": {"type": "mrkdwn", "text": f"*Errors*\n```{err_text}```"}})
+
+        try:
+            app.client.chat_update(
+                channel=TEST_ALERT_CH,
+                ts=draft_ts,
+                text=status,
+                blocks=blocks,
+            )
+        except Exception as e:
+            print(f"[DRAFT_UPDATE_FAIL] {repr(e)}")
+
+
+@app.action(REJECT_ACTION_ID)
+def handle_reject(ack, body):
+    ack()
+    approval_id = (body.get("actions", [{}])[0].get("value") or "").strip()
+    now_ts = time.time()
+    prune_pending_approvals(now_ts)
+
+    payload = pending_approvals.pop(approval_id, None)
+    if not payload:
+        try:
+            app.client.chat_postEphemeral(
+                channel=TEST_ALERT_CH,
+                user=body["user"]["id"],
+                text="⚠️ 거절 대상이 만료되었거나 이미 처리되었습니다.",
+            )
+        except Exception:
+            pass
+        return
+
+    draft_ts = payload.get("draft_ts")
+    if draft_ts:
+        try:
+            app.client.chat_update(
+                channel=TEST_ALERT_CH,
+                ts=draft_ts,
+                text="🛑 Rejected",
+                blocks=[
+                    {"type": "section", "text": {"type": "mrkdwn", "text": f"*🛑 Rejected*\napproval_id: `{approval_id}`"}}
+                ],
+            )
+        except Exception as e:
+            print(f"[DRAFT_UPDATE_FAIL] {repr(e)}")
 
 
 # --------------------------------------------------------
