@@ -66,8 +66,8 @@ MENTION_PJH = "<@U04LL3F11C6>"
 # --------------------------------------------------------
 WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
 
-# ✅ "전체 채널 통합" 발언 제한: 2분 동안 최대 1회 (모든 채널 합쳐서 1건만)
-GLOBAL_RATE_WINDOW_SECONDS = 120
+# ✅ "전체 채널 통합" 발언 제한: 5분 동안 최대 1회 (모든 채널 합쳐서 1건만)
+GLOBAL_RATE_WINDOW_SECONDS = 300
 GLOBAL_RATE_LIMIT_COUNT = 1
 global_alert_sent_times = deque()  # bot chat_postMessage 성공 timestamps (전 채널 통합)
 
