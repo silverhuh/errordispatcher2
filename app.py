@@ -67,9 +67,9 @@ MENTION_PJH = "<@U04LL3F11C6>"
 # --------------------------------------------------------
 WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
 
-# ✅ 전역 발언 제한: 5분 동안 2회
+# ✅ 전역 발언 제한: 5분 동안 1회
 GLOBAL_RATE_WINDOW_SECONDS = 300
-GLOBAL_RATE_LIMIT_COUNT = 2
+GLOBAL_RATE_LIMIT_COUNT = 1
 global_alert_sent_times = deque()  # chat_postMessage "성공"을 기준으로 카운트하되,
                                   # 동시성 방지를 위해 '예약(reserve)' 방식으로 관리
 
