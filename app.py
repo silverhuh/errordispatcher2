@@ -66,10 +66,10 @@ MENTION_PJH = "<@U04LL3F11C6>"
 # --------------------------------------------------------
 WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
 
-# ✅ 전역 발언 제한: 5분 동안 1회
-GLOBAL_RATE_WINDOW_SECONDS = 300
-GLOBAL_RATE_LIMIT_COUNT = 0.5
-global_alert_sent_times = deque()  # bot chat_postMessage 성공 timestamps
+# ✅ 채널 단위 발언 제한: 각 채널에서 5분 동안 1회
+CHANNEL_RATE_WINDOW_SECONDS = 300
+CHANNEL_RATE_LIMIT_COUNT = 1
+channel_alert_sent_times = defaultdict(deque)  # channel -> deque[timestamps] (chat_postMessage 성공 기준)
 
 message_window = defaultdict(deque)  # (channel, rule) -> deque[timestamps]
 is_muted = False
@@ -355,22 +355,26 @@ def prune_old_events(key, now_ts):
         dq.popleft()
 
 
-# ✅ 전역 발언 제한(레이트리밋) 관련 helpers
-def prune_global_alerts(now_ts: float):
-    while global_alert_sent_times and (now_ts - global_alert_sent_times[0] > GLOBAL_RATE_WINDOW_SECONDS):
-        global_alert_sent_times.popleft()
+# ✅ 채널 단위 발언 제한(레이트리밋) helpers
+def prune_channel_alerts(channel: str, now_ts: float):
+    dq = channel_alert_sent_times[channel]
+    while dq and (now_ts - dq[0] > CHANNEL_RATE_WINDOW_SECONDS):
+        dq.popleft()
+    # 비어있으면 메모리 정리(선택)
+    if not dq:
+        channel_alert_sent_times.pop(channel, None)
 
 
-def global_can_speak(now_ts: float) -> bool:
+def channel_can_speak(target_channel: str, now_ts: float) -> bool:
     if is_muted:
         return False
-    prune_global_alerts(now_ts)
-    return len(global_alert_sent_times) < GLOBAL_RATE_LIMIT_COUNT
+    prune_channel_alerts(target_channel, now_ts)
+    return len(channel_alert_sent_times[target_channel]) < CHANNEL_RATE_LIMIT_COUNT
 
 
-def global_mark_spoke(now_ts: float):
-    prune_global_alerts(now_ts)
-    global_alert_sent_times.append(now_ts)
+def channel_mark_spoke(target_channel: str, now_ts: float):
+    prune_channel_alerts(target_channel, now_ts)
+    channel_alert_sent_times[target_channel].append(now_ts)
 
 
 def keyword_hits_in_text(keyword: str, text: str) -> int:
@@ -387,9 +391,9 @@ def keyword_hits_in_text(keyword: str, text: str) -> int:
 def send_alert_for_rule(rule, event):
     """
     ✅ 전파 중 일부 채널 실패해도 프로세스가 죽지 않도록 방어
-    ✅ 전역 발언 제한: 5분 동안 2회까지만 전송
+    ✅ 채널 단위 발언 제한: "각 채널에서" 5분 동안 1회까지만 전송
     - "발언 1회"는 chat_postMessage 성공 1회를 의미함
-      (notify가 2채널이면 2회로 카운트)
+      (notify가 2채널이면 각각 해당 채널 카운터가 1회씩 증가)
     """
     now_ts = time.time()
     original_text = event.get("text", "") or ""
@@ -399,22 +403,24 @@ def send_alert_for_rule(rule, event):
     errors = []
 
     for action in rule.get("notify", []):
-        # 전역 발언 제한 체크 (발언 직전)
-        if not global_can_speak(now_ts):
-            break
+        target_channel = action["channel"]
+
+        # 채널 단위 발언 제한 체크 (발언 직전)
+        if not channel_can_speak(target_channel, now_ts):
+            continue
 
         try:
             text = action["text"]
             if action.get("include_log"):
                 text += f"\n\n```{original_text}```"
 
-            app.client.chat_postMessage(channel=action["channel"], text=text)
+            app.client.chat_postMessage(channel=target_channel, text=text)
 
             sent_any = True
-            global_mark_spoke(now_ts)
+            channel_mark_spoke(target_channel, now_ts)
 
         except Exception as e:
-            errors.append(f"{action.get('channel')} -> {repr(e)}")
+            errors.append(f"{target_channel} -> {repr(e)}")
 
     if (not sent_any) and errors:
         src_channel = event.get("channel")
@@ -507,7 +513,7 @@ def handle_message(body, say):
     if cmd.startswith("!unmute"):
         is_muted = False
         message_window.clear()
-        global_alert_sent_times.clear()  # 전역 발언 제한 카운터 초기화
+        channel_alert_sent_times.clear()  # ✅ 채널별 발언 제한 카운터 초기화
         try:
             app.client.chat_postMessage(channel=channel, text="🔔 Bot unmute 되었습니다. (카운트 초기화)")
         except Exception as e:
@@ -534,7 +540,7 @@ def slash_unmute(ack, respond):
     ack()
     is_muted = False
     message_window.clear()
-    global_alert_sent_times.clear()  # 전역 발언 제한 카운터 초기화
+    channel_alert_sent_times.clear()  # ✅ 채널별 발언 제한 카운터 초기화
     respond("🔔 Bot unmute 완료 (카운트 초기화)")
 
 
