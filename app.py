@@ -284,7 +284,7 @@ RULES = [
         "name": "REQUEST_ID",
         "channel": SVC_BTV_DIV_CH,
         "keyword": "REQUEST_ID",
-        "threshold": 10,
+        "threshold": 20,
         "notify": [
             {
                 "channel": SVC_BTV_DIV_CH,
