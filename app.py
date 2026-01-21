@@ -1,5 +1,5 @@
 # --------------------------------------------------------
-# BOOT 로그 (인스턴스/재기동 확인용) - 파일 최상단에 둬도 OK
+# BOOT 로그 (인스턴스/재기동 확인용)
 # --------------------------------------------------------
 import os, socket, time as _time
 print(
@@ -20,6 +20,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 # --------------------------------------------------------
 SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")
 SLACK_APP_TOKEN = os.environ.get("SLACK_APP_TOKEN")
+
 if not SLACK_BOT_TOKEN or not SLACK_APP_TOKEN:
     raise RuntimeError("Missing SLACK_BOT_TOKEN or SLACK_APP_TOKEN in environment variables.")
 
@@ -44,54 +45,42 @@ OPEN_MONITORING_CH = "C09BLHZAPSS"
 # 멘션 ID 정의
 # --------------------------------------------------------
 MENTION_HEO = "<@U04MGC3BFCY>"
-
 MENTION_KDW = "<@U03H53S4B2B>"
 MENTION_NJK = "<@U03L9HG1Q49>"
 MENTION_JJY = "<@U03J9DUADJ4>"
-
 MENTION_KJH = "<@U04M5AFPQHF>"
 MENTION_KHR = "<@U04LSM49TR8>"
-
 MENTION_KYH = "<@U063M2LKNA1>"
 MENTION_GJH = "<@U063M2QM89K>"
 MENTION_YYJ = "<@U04LSHPDC03>"
 MENTION_PJY = "<@U05319QDEET>"
-
 MENTION_KAI = "<@U06NSJVR0GH>"
 MENTION_BSR = "<@U08DS680G7L>"
-
 MENTION_KSW = "<@U04MGC174HE>"
 MENTION_LYS = "<@U04LV5K4PA8>"
-
 MENTION_GMS = "<@U04M5A7194H>"
 MENTION_JUR = "<@U05BK5TSBRV>"
-
 MENTION_SYC = "<@U04LSHQMADR>"
-
 MENTION_KHJ = "<@U04LC55FDN3>"
 MENTION_PJH = "<@U04LL3F11C6>"
 
 # --------------------------------------------------------
 # 공통 설정
 # --------------------------------------------------------
-WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
+WINDOW_SECONDS = 240
+GLOBAL_RATE_WINDOW_SECONDS = 300  # 5분
+GLOBAL_RATE_LIMIT_COUNT = 1       # 5분 내 1회 제한
 
-# ✅ 목표: "모든 채널 통합" 5분 동안 최대 1건만 bot 알림 전송
-GLOBAL_RATE_WINDOW_SECONDS = 300
-GLOBAL_RATE_LIMIT_COUNT = 1
-global_alert_sent_times = deque()  # (전 채널 통합) bot 알림 성공 timestamps
-
-message_window = defaultdict(deque)  # (channel, rule) -> deque[timestamps]
-
-# ✅ Mute는 "트리거 카운팅/전송" 자체를 완전히 중단 (unmute 시 폭발 방지 위해 카운터도 초기화)
+# 전역 상태 변수
+global_alert_sent_times = deque()
+message_window = defaultdict(deque)
 is_muted = False
 
-# 멀티스레드 방어(railway/bolt 환경에서 동시 이벤트 처리 대비)
+# Thread Safety Lock (동시성 제어 핵심)
 state_lock = threading.Lock()
 
-# 내 봇 식별용
 BOT_USER_ID = None
-BOT_ID = None  # event.get("bot_id") 비교용(있으면 더 안전)
+BOT_ID = None
 
 # --------------------------------------------------------
 # RULES
@@ -105,18 +94,12 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": (
-                    f"{ALERT_PREFIX} Test 메시지 : 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. "
-                    f"(cc. {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} Test 메시지 : 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": RTZR_STT_SKT_ALERT_CH,
-                "text": (
-                    f"{ALERT_PREFIX} Test 메시지 입니다. "
-                    f"(cc. {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} Test 메시지 입니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
         ],
@@ -129,11 +112,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": (
-                    f"{ALERT_PREFIX} 노트 에러(PET_API) 5회 이상 감지중! "
-                    f"{MENTION_KJH}님, {MENTION_KHR}님 확인 문의드립니다. "
-                    f"(cc. {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} 노트 에러(PET_API) 5회 이상 감지중! {MENTION_KJH}님, {MENTION_KHR}님 확인 문의드립니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
         ],
@@ -146,10 +125,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": (
-                    f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다."
-                    f"(cc. {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다. (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
         ],
@@ -167,11 +143,7 @@ RULES = [
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
-                "text": (
-                    f"{ALERT_PREFIX} Perplexity 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} Perplexity 에러가 발생되어 확인 문의드립니다. {MENTION_KYH}님, {MENTION_GJH}님 (cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)",
                 "include_log": True,
             },
         ],
@@ -189,11 +161,7 @@ RULES = [
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
-                "text": (
-                    f"{ALERT_PREFIX} Claude 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} Claude 에러가 발생되어 확인 문의드립니다. {MENTION_KYH}님, {MENTION_GJH}님 (cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)",
                 "include_log": True,
             },
         ],
@@ -211,11 +179,7 @@ RULES = [
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
-                "text": (
-                    f"{ALERT_PREFIX} GPT 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} GPT 에러가 발생되어 확인 문의드립니다. {MENTION_KYH}님, {MENTION_GJH}님 (cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)",
                 "include_log": True,
             },
         ],
@@ -233,11 +197,7 @@ RULES = [
             },
             {
                 "channel": EXT_GIP_REPAIRING_CH,
-                "text": (
-                    f"{ALERT_PREFIX} Gemini 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} Gemini 에러가 발생되어 확인 문의드립니다. {MENTION_KYH}님, {MENTION_GJH}님 (cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)",
                 "include_log": True,
             },
         ],
@@ -255,11 +215,7 @@ RULES = [
             },
             {
                 "channel": LINER_ADOT_CH,
-                "text": (
-                    f"{ALERT_PREFIX} Liner 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KAI}님, {MENTION_BSR}님 "
-                    f"(cc. {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} Liner 에러가 발생되어 확인 문의드립니다. {MENTION_KAI}님, {MENTION_BSR}님 (cc. {MENTION_HEO}님)",
                 "include_log": True,
             },
         ],
@@ -277,11 +233,7 @@ RULES = [
             },
             {
                 "channel": ERROR_AX_CH,
-                "text": (
-                    f"{ALERT_PREFIX} A.X 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KSW}님, {MENTION_LYS}님 "
-                    f"(cc. {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} A.X 에러가 발생되어 확인 문의드립니다. {MENTION_KSW}님, {MENTION_LYS}님 (cc. {MENTION_HEO}님)",
                 "include_log": True,
             },
         ],
@@ -294,20 +246,15 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_BTV_DIV_CH,
-                "text": (
-                    f"{ALERT_PREFIX} 에러가 감지되어 확인 문의드립니다. "
-                    f"{MENTION_SYC}님, {MENTION_GMS}님 "
-                    f"(cc. {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} 에러가 감지되어 확인 문의드립니다. {MENTION_SYC}님, {MENTION_GMS}님 (cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
         ],
     },
-    # 테스트
     {
         "name": "TEST",
         "channel": TEST_ALERT_CH,
-        "keyword": "builtin.one",
+        "keyword": "test",
         "threshold": 5,
         "notify": [
             {
@@ -317,7 +264,6 @@ RULES = [
             },
         ],
     },
-    # TMAP API
     {
         "name": "API",
         "channel": SVC_TMAP_DIV_CH,
@@ -326,19 +272,12 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_TMAP_DIV_CH,
-                "text": (
-                    f"{ALERT_PREFIX} TMAP API 에러가 감지되어 티모비 채널에 전파하였습니다. "
-                    f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} TMAP API 에러가 감지되어 티모비 채널에 전파하였습니다. (cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)",
                 "include_log": False,
             },
             {
                 "channel": OPEN_MONITORING_CH,
-                "text": (
-                    f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. "
-                    f"<!here>\n"
-                    f"(cc. {MENTION_HEO}님)"
-                ),
+                "text": f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. <!here>\n(cc. {MENTION_HEO}님)",
                 "include_log": False,
             },
         ],
@@ -346,13 +285,9 @@ RULES = [
 ]
 
 # --------------------------------------------------------
-# helpers
+# Helpers
 # --------------------------------------------------------
 def init_bot_identity():
-    """
-    BOT_USER_ID: 내 봇 '유저' ID (U로 시작)
-    BOT_ID: 내 봇 'bot_id' (B로 시작) - 이벤트에서 bot_id로 들어올 때 비교용
-    """
     global BOT_USER_ID, BOT_ID
     try:
         resp = app.client.auth_test()
@@ -360,112 +295,100 @@ def init_bot_identity():
         BOT_ID = resp.get("bot_id")
         print(f"[BOOT] BOT_USER_ID={BOT_USER_ID}, BOT_ID={BOT_ID}")
     except Exception as e:
-        BOT_USER_ID, BOT_ID = None, None
         print(f"[BOOT] auth_test failed: {repr(e)}")
-
 
 def prune_old_events(key, now_ts: float):
     dq = message_window[key]
     while dq and now_ts - dq[0] > WINDOW_SECONDS:
         dq.popleft()
 
-
 def prune_global_alerts(now_ts: float):
     while global_alert_sent_times and (now_ts - global_alert_sent_times[0] > GLOBAL_RATE_WINDOW_SECONDS):
         global_alert_sent_times.popleft()
 
-
-def global_can_speak(now_ts: float) -> bool:
-    # state_lock은 호출하는 쪽에서 잡는 걸 권장(중복 lock 방지)
-    if is_muted:
-        return False
-    prune_global_alerts(now_ts)
-    return len(global_alert_sent_times) < GLOBAL_RATE_LIMIT_COUNT
-
-
-def global_mark_spoke(now_ts: float):
-    prune_global_alerts(now_ts)
-    global_alert_sent_times.append(now_ts)
-
-
 def keyword_hits_in_text(keyword: str, text: str) -> int:
-    """
-    한 메시지 안에서 keyword가 여러 번 나오면 그 횟수만큼 카운트
-    - 대소문자 무시
-    - 단순 substring count
-    """
     if not keyword or not text:
         return 0
     return text.lower().count(keyword.lower())
 
+# ✅ [핵심] 선점(Reservation) 로직
+# "보낼 수 있어?" 가 아니라 "나 보낸다!" 하고 깃발을 먼저 꽂습니다.
+def try_reserve_global_slot(now_ts: float) -> bool:
+    with state_lock:
+        # 1. Mute 상태면 무조건 실패
+        if is_muted:
+            print("[SKIP] Muted state.")
+            return False
+        
+        # 2. 시간 지난 기록 삭제
+        prune_global_alerts(now_ts)
+        
+        # 3. 꽉 찼으면 실패 (엄격한 검사)
+        if len(global_alert_sent_times) >= GLOBAL_RATE_LIMIT_COUNT:
+            print(f"[SKIP] Rate limit reached. count={len(global_alert_sent_times)}")
+            return False
+        
+        # 4. 자리 선점 (중요: 전송 전에 미리 넣음)
+        global_alert_sent_times.append(now_ts)
+        return True
+
+# ✅ [핵심] 롤백(Rollback) 로직
+# 전송하다가 에러나면 "아까 꽂은 깃발 취소"
+def rollback_global_slot(now_ts: float):
+    with state_lock:
+        if global_alert_sent_times and global_alert_sent_times[-1] == now_ts:
+            global_alert_sent_times.pop()
+            print("[ROLLBACK] Alert send failed, slot restored.")
 
 def send_alert_for_rule(rule, event) -> bool:
-    """
-    ✅ 진짜 목표를 강제:
-    - (전 채널 통합) 5분에 1건만 전송
-    - notify가 여러 개여도 "성공 1건" 보내면 즉시 종료
-    - mute면 아무것도 하지 않음
-    - 성공했는지(True/False)를 반환 → process_message가 즉시 중단 가능
-    """
     now_ts = time.time()
     original_text = event.get("text", "") or ""
     rule_name = rule.get("name")
     src_channel = event.get("channel")
 
-    with state_lock:
-        if not global_can_speak(now_ts):
-            return False
+    # 1. [선점 시도] 티켓을 먼저 끊습니다. (실패하면 즉시 중단)
+    if not try_reserve_global_slot(now_ts):
+        return False
 
+    # 2. [전송 수행] 티켓을 가진 스레드만 실행됩니다.
     errors = []
+    success = False
 
-    for action in rule.get("notify", []):
-        target_channel = action["channel"]
-
-        try:
+    try:
+        for action in rule.get("notify", []):
+            target_channel = action["channel"]
             text = action["text"]
             if action.get("include_log"):
                 text += f"\n\n```{original_text}```"
 
-            app.client.chat_postMessage(channel=target_channel, text=text)
+            try:
+                app.client.chat_postMessage(channel=target_channel, text=text)
+                success = True # 하나라도 성공하면 성공으로 간주
+                print(f"[ALERT_SENT] rule={rule_name} src={src_channel} -> {target_channel}")
+            except Exception as e:
+                errors.append(f"{target_channel}: {e}")
 
-            # ✅ 성공 시에만 카운트 + 즉시 종료
-            with state_lock:
-                global_mark_spoke(now_ts)
+    except Exception as e:
+        errors.append(f"Fatal: {e}")
 
-            print(f"[ALERT_SENT] rule={rule_name} src={src_channel} -> {target_channel}")
-            return True
-
-        except Exception as e:
-            errors.append(f"{target_channel} -> {repr(e)}")
-
-    if errors:
-        print(f"[ALERT_FAIL] rule={rule_name} src_channel={src_channel} errors={errors}")
-    return False
-
+    # 3. [사후 처리] 전송 실패했으면 티켓 환불(롤백)
+    if not success:
+        rollback_global_slot(now_ts)
+        if errors:
+            print(f"[ALERT_FAIL] rule={rule_name} errors={errors}")
+        return False
+    
+    return True
 
 def process_message(event):
-    """
-    ✅ 핵심 수정 포인트:
-    1) mute면 아예 카운팅/전송 로직을 돌리지 않음(=unmute 후 폭발 방지)
-    2) 전역 레이트리밋이 이미 막혀있으면 '카운팅은 하더라도' 결국 못 보냄.
-       - 여기서는 더 깔끔하게: 레이트리밋이면 카운팅도 하지 않도록 early return 가능.
-         (원하면 주석처리된 옵션을 사용)
-    3) 어떤 rule이든 알림 1건이라도 성공 전송되면, 이번 이벤트 처리 즉시 종료(return)
-       → "5회까지 나가는" 현상 근본 차단
-    """
     now_ts = time.time()
     channel = event.get("channel")
     text = (event.get("text") or "")
 
-    # (A) mute면 아무 것도 하지 않음 (카운팅도 안 함)
+    # Mute 체크 (CPU 낭비 방지용 early check)
     with state_lock:
         if is_muted:
             return
-
-    # (B) 레이트리밋이면 아예 카운팅도 안 하고 종료하고 싶으면 아래를 켜
-    # with state_lock:
-    #     if not global_can_speak(now_ts):
-    #         return
 
     # 1) RULES 기반 감지
     for rule in RULES:
@@ -478,95 +401,80 @@ def process_message(event):
 
         key = (channel, rule["name"])
 
+        # 카운트 증가 로직
+        triggered = False
         with state_lock:
             prune_old_events(key, now_ts)
-
-            # 한 메시지에서 여러 번 등장하면 그 횟수만큼 timestamp 추가
             for _ in range(hits):
                 message_window[key].append(now_ts)
-
+            
             triggered = len(message_window[key]) >= rule["threshold"]
 
         if triggered:
+            # 알림 시도 (여기서 Rate Limit 걸리면 False 반환)
             sent = send_alert_for_rule(rule, event)
-
-            with state_lock:
-                message_window[key].clear()
-
-            # ✅ 이번 이벤트에서 알림 1건이라도 성공하면 즉시 종료 (전역 1건 보장)
+            
+            # ✅ 중요: 알림이 성공적으로 나갔을 때만 카운트 초기화
+            # 실패(Rate Limit 등)했다면 카운트를 유지해서, 
+            # 5분 뒤 제한이 풀리면 다음 메시지에서 즉시 알림이 나가도록 함
             if sent:
-                return
+                with state_lock:
+                    message_window[key].clear()
+                return # 이번 메시지 처리 끝
 
-    # 2) TMAP 채널 전용: "API" 미포함 메시지 5회
+    # 2) TMAP 채널 전용 룰
     if channel == SVC_TMAP_DIV_CH and "api" not in text.lower():
         key = (channel, "TMAP_API_MISSING")
-
+        triggered = False
         with state_lock:
             prune_old_events(key, now_ts)
             message_window[key].append(now_ts)
             triggered = len(message_window[key]) >= 5
-
+        
         if triggered:
             pseudo_rule = {
                 "name": "TMAP_API_MISSING",
-                "notify": [
-                    {
-                        "channel": SVC_TMAP_DIV_CH,
-                        "text": (
-                            f"{ALERT_PREFIX} 내부 원인으로 추정되는 에러가 감지되어 확인 문의드립니다. "
-                            f"{MENTION_KHJ}님, {MENTION_PJH}님 "
-                            f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
-                        ),
-                        "include_log": False,
-                    }
-                ],
+                "notify": [{
+                    "channel": SVC_TMAP_DIV_CH,
+                    "text": f"{ALERT_PREFIX} 내부 원인 추정 에러 감지. {MENTION_KHJ}님, {MENTION_PJH}님 (cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)",
+                    "include_log": False
+                }]
             }
-
             sent = send_alert_for_rule(pseudo_rule, event)
-
-            with state_lock:
-                message_window[key].clear()
-
             if sent:
+                with state_lock:
+                    message_window[key].clear()
                 return
-
 
 # --------------------------------------------------------
 # Slack message event
 # --------------------------------------------------------
 @app.event("message")
 def handle_message(body, say):
-    event = body.get("event", {}) or {}
-
-    # (1) 메시지 수정/삭제 등 '메시지 본문이 아닌 이벤트'는 제외
+    event = body.get("event", {})
     if event.get("subtype") is not None:
         return
 
-    # 다른 봇 메시지도 감지한다.
-    # 단, "내 봇이 보낸 메시지"만 무시하여 무한루프를 방지한다.
-    if BOT_USER_ID and event.get("user") == BOT_USER_ID:
-        return
-    if BOT_ID and event.get("bot_id") == BOT_ID:
-        return
+    # 내 봇 무시
+    if BOT_USER_ID and event.get("user") == BOT_USER_ID: return
+    if BOT_ID and event.get("bot_id") == BOT_ID: return
 
     channel = event.get("channel")
-    text = (event.get("text") or "")
-    cmd = text.strip().lower()
+    text = (event.get("text") or "").strip()
+    cmd = text.lower()
 
     global is_muted
 
-    # ✅ 명령어는 mute 상태에서도 처리되게(특히 unmute)
+    # 명령어 처리 (명령어는 Mute 상태에서도 동작해야 함)
     if cmd.startswith("!mute"):
         with state_lock:
             is_muted = True
-            # mute 시점에 "쌓인 카운터로 인해 unmute 직후 폭발" 방지용 초기화
-            message_window.clear()
-            global_alert_sent_times.clear()
-
+            message_window.clear() # 기존 카운트 모두 초기화
+            global_alert_sent_times.clear() # 쿨타임 초기화
         try:
-            app.client.chat_postMessage(channel=channel, text="🔇 Bot mute 상태입니다. (카운트 초기화)")
+            app.client.chat_postMessage(channel=channel, text="🔇 Bot mute 상태입니다. (모든 알림 중단)")
         except Exception as e:
-            print(f"[MUTE_REPLY_FAIL] {repr(e)}")
+            print(f"[MUTE_CMD_FAIL] {e}")
         return
 
     if cmd.startswith("!unmute"):
@@ -574,18 +482,16 @@ def handle_message(body, say):
             is_muted = False
             message_window.clear()
             global_alert_sent_times.clear()
-
         try:
-            app.client.chat_postMessage(channel=channel, text="🔔 Bot unmute 되었습니다. (카운트 초기화)")
+            app.client.chat_postMessage(channel=channel, text="🔔 Bot unmute 되었습니다.")
         except Exception as e:
-            print(f"[UNMUTE_REPLY_FAIL] {repr(e)}")
+            print(f"[UNMUTE_CMD_FAIL] {e}")
         return
 
     process_message(event)
 
-
 # --------------------------------------------------------
-# Slash commands (등록돼 있어야 작동)
+# Slash commands
 # --------------------------------------------------------
 @app.command("/mute")
 def slash_mute(ack, respond):
@@ -595,8 +501,7 @@ def slash_mute(ack, respond):
         is_muted = True
         message_window.clear()
         global_alert_sent_times.clear()
-    respond("🔇 Bot mute 설정 완료 (카운트 초기화)")
-
+    respond("🔇 Bot mute 설정 완료")
 
 @app.command("/unmute")
 def slash_unmute(ack, respond):
@@ -606,8 +511,7 @@ def slash_unmute(ack, respond):
         is_muted = False
         message_window.clear()
         global_alert_sent_times.clear()
-    respond("🔔 Bot unmute 완료 (카운트 초기화)")
-
+    respond("🔔 Bot unmute 완료")
 
 # --------------------------------------------------------
 # main
