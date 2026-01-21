@@ -1,3 +1,12 @@
+import os, socket, time
+
+print(
+    f"[BOOT] pid={os.getpid()} "
+    f"host={socket.gethostname()} "
+    f"time={time.time()}"
+)
+
+
 import os
 import time
 from collections import defaultdict, deque
