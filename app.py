@@ -1,10 +1,17 @@
 import os
+import socket
 import time
 import threading
 from collections import defaultdict, deque
 
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+
+print(
+    f"[BOOT] pid={os.getpid()} "
+    f"host={socket.gethostname()} "
+    f"time={time.time()}"
+)
 
 # --------------------------------------------------------
 # Slack App 초기화
@@ -67,52 +74,23 @@ MENTION_PJH = "<@U04LL3F11C6>"
 # --------------------------------------------------------
 WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
 
-# ✅ 전역 "트리거" 제한: 5분 동안 1회
+# ✅ 전역 발언 제한: 5분 동안 1회 (전 채널 통합)
 GLOBAL_RATE_WINDOW_SECONDS = 300
 GLOBAL_RATE_LIMIT_COUNT = 1
-global_alert_sent_times = deque()  # "트리거 성공" timestamps (notify 개수와 무관)
+global_alert_sent_times = deque()  # "트리거 1회당 1건"을 보장하기 위해 트리거 단위로 카운트
 
 message_window = defaultdict(deque)  # (channel, rule) -> deque[timestamps]
 is_muted = False
+
+# 동시성(레이스 컨디션) 방지용 락
+state_lock = threading.Lock()
 
 # 내 봇 식별용
 BOT_USER_ID = None
 BOT_ID = None  # event.get("bot_id") 비교용(있으면 더 안전)
 
 # --------------------------------------------------------
-# 🔧 동시성/레이스 방지용 락
-# --------------------------------------------------------
-rate_lock = threading.Lock()
-
-# --------------------------------------------------------
-# 🔧 Slack 중복 이벤트(재시도/중복전달) 방지용 dedupe
-# --------------------------------------------------------
-EVENT_DEDUPE_TTL_SECONDS = 600  # 10분
-recent_event_ids = deque()      # (ts, event_id)
-recent_event_id_set = set()
-
-def dedupe_event(event_id: str, now_ts: float) -> bool:
-    """
-    True  -> 이미 처리한 이벤트(중복)라서 skip
-    False -> 처음 보는 이벤트라서 처리 계속
-    """
-    if not event_id:
-        return False
-
-    while recent_event_ids and (now_ts - recent_event_ids[0][0] > EVENT_DEDUPE_TTL_SECONDS):
-        old_ts, old_id = recent_event_ids.popleft()
-        recent_event_id_set.discard(old_id)
-
-    if event_id in recent_event_id_set:
-        return True
-
-    recent_event_ids.append((now_ts, event_id))
-    recent_event_id_set.add(event_id)
-    return False
-
-
-# --------------------------------------------------------
-# RULES (✅ 사용자가 준 내용 그대로 유지)
+# RULES (기존 유지)
 # --------------------------------------------------------
 RULES = [
     {
@@ -165,10 +143,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": (
-                    f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다."
-                    f"(cc. {MENTION_HEO}님)"
-                ),
+                "text": (f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다." f"(cc. {MENTION_HEO}님)"),
                 "include_log": False,
             },
         ],
@@ -383,54 +358,41 @@ def init_bot_identity():
         print(f"[BOOT] auth_test failed: {repr(e)}")
 
 
-def prune_old_events(key, now_ts):
+def prune_old_events(key, now_ts: float):
     dq = message_window[key]
     while dq and now_ts - dq[0] > WINDOW_SECONDS:
         dq.popleft()
 
 
-def prune_global_triggers(now_ts: float):
+def prune_global_alerts(now_ts: float):
     while global_alert_sent_times and (now_ts - global_alert_sent_times[0] > GLOBAL_RATE_WINDOW_SECONDS):
         global_alert_sent_times.popleft()
 
 
-def try_reserve_global_trigger(now_ts: float):
+def global_can_speak_locked(now_ts: float) -> bool:
     """
-    🔥 핵심:
-    - 전역 5분 1회 제한은 "트리거 단위"로 카운트
-    - notify가 여러 채널이어도 트리거 1개로만 카운트
-    - 동시성 레이스 방지를 위해 '선점'을 원자적으로 수행
+    state_lock 잡힌 상태에서만 호출
     """
-    global is_muted
-    with rate_lock:
-        if is_muted:
-            return None
-        prune_global_triggers(now_ts)
-        if len(global_alert_sent_times) >= GLOBAL_RATE_LIMIT_COUNT:
-            return None
-        global_alert_sent_times.append(now_ts)  # 선점(예약)
-        return now_ts  # token
+    if is_muted:
+        return False
+    prune_global_alerts(now_ts)
+    return len(global_alert_sent_times) < GLOBAL_RATE_LIMIT_COUNT
 
 
-def rollback_reserved_trigger(token_ts: float):
+def global_mark_spoke_locked(now_ts: float):
     """
-    전송이 '단 1건도 성공하지 않은 경우'에만 롤백(선택적).
+    state_lock 잡힌 상태에서만 호출
     """
-    if token_ts is None:
-        return
-    with rate_lock:
-        # 가장 끝이 토큰이면 pop (정상 케이스)
-        if global_alert_sent_times and global_alert_sent_times[-1] == token_ts:
-            global_alert_sent_times.pop()
-            return
-        # 혹시 다른 순서로 섞였으면 1회 제거(보수적)
-        try:
-            global_alert_sent_times.remove(token_ts)
-        except ValueError:
-            pass
+    prune_global_alerts(now_ts)
+    global_alert_sent_times.append(now_ts)
 
 
 def keyword_hits_in_text(keyword: str, text: str) -> int:
+    """
+    한 메시지 안에서 keyword가 여러 번 나오면 그 횟수만큼 카운트
+    - 대소문자 무시
+    - 단순 substring count
+    """
     if not keyword or not text:
         return 0
     return text.lower().count(keyword.lower())
@@ -438,21 +400,26 @@ def keyword_hits_in_text(keyword: str, text: str) -> int:
 
 def send_alert_for_rule(rule, event):
     """
-    ✅ 전역 제한(5분 1회)은 '트리거' 기준
-    ✅ 트리거가 허용되면 rule.notify는 "전부" 전송한다 (여러 채널 OK)
-    ✅ notify 개수와 관계없이 전역 카운트는 1회로만 처리한다
+    ✅ 전파 중 일부 채널 실패해도 프로세스가 죽지 않도록 방어
+    ✅ 전역 발언 제한: 5분 동안 1회
+    ✅ 트리거 1회당 알림 1건만 전송 (notify 여러 개여도 첫 1건 성공 후 종료)
+    ✅ mute 경쟁 상태 방지: state_lock으로 원자적으로 체크/마크
     """
     now_ts = time.time()
     original_text = event.get("text", "") or ""
     rule_name = rule.get("name")
 
-    token = try_reserve_global_trigger(now_ts)
-    if token is None:
-        return  # 5분 내 이미 트리거가 발생했거나 mute
+    # 1) 먼저 '전송 권한'을 lock 안에서 확보(슬롯 예약)
+    with state_lock:
+        if not global_can_speak_locked(now_ts):
+            return
+        # 슬롯 예약(여기서 mark) -> 이후 스레드가 동시에 들어와도 추가 전송 못 함
+        global_mark_spoke_locked(now_ts)
 
     sent_any = False
     errors = []
 
+    # 2) 실제 전송 (락 밖에서 수행: Slack API 호출이 느려도 전체가 막히지 않게)
     for action in rule.get("notify", []):
         target_channel = action.get("channel")
         try:
@@ -463,22 +430,33 @@ def send_alert_for_rule(rule, event):
             app.client.chat_postMessage(channel=target_channel, text=text)
             sent_any = True
 
+            # ✅ 트리거 1회당 메시지 1건만
+            break
+
         except Exception as e:
             errors.append(f"{target_channel} -> {repr(e)}")
 
-    # 전송이 "단 1건도" 성공 못했으면, 트리거 선점 롤백(선택적이지만 보통 유용)
+    # 3) 만약 "첫 전송"이 실패했다면? -> 예약했던 슬롯을 되돌려주자(재시도 가능하게)
     if not sent_any:
-        rollback_reserved_trigger(token)
+        with state_lock:
+            # 방어적으로: 가장 마지막이 지금 예약분이면 pop
+            if global_alert_sent_times and global_alert_sent_times[-1] == now_ts:
+                global_alert_sent_times.pop()
 
-    if errors:
-        src_channel = event.get("channel")
-        print(f"[ALERT_PARTIAL_FAIL] rule={rule_name} src_channel={src_channel} errors={errors}")
+        if errors:
+            src_channel = event.get("channel")
+            print(f"[ALERT_FAIL] rule={rule_name} src_channel={src_channel} errors={errors}")
 
 
 def process_message(event):
     channel = event.get("channel")
     text = (event.get("text") or "")
     now_ts = time.time()
+
+    # ✅ mute 중엔 카운팅도 하지 않음(누적 방지)
+    with state_lock:
+        if is_muted:
+            return
 
     # 1) RULES 기반 감지
     for rule in RULES:
@@ -492,6 +470,7 @@ def process_message(event):
         key = (channel, rule["name"])
         prune_old_events(key, now_ts)
 
+        # 한 메시지에서 여러 번 등장하면 그 횟수만큼 timestamp 추가
         for _ in range(hits):
             message_window[key].append(now_ts)
 
@@ -499,7 +478,7 @@ def process_message(event):
             send_alert_for_rule(rule, event)
             message_window[key].clear()
 
-    # 2) TMAP 채널 전용: "API" 미포함 메시지 5회 (✅ 기존 기능 유지)
+    # 2) TMAP 채널 전용: "API" 미포함 메시지 5회
     if channel == SVC_TMAP_DIV_CH and "api" not in text.lower():
         key = (channel, "TMAP_API_MISSING")
         prune_old_events(key, now_ts)
@@ -530,13 +509,6 @@ def process_message(event):
 @app.event("message")
 def handle_message(body, say):
     event = body.get("event", {}) or {}
-    now_ts = time.time()
-
-    # 🔧 중복 이벤트 방지
-    event_id = body.get("event_id") or event.get("event_id") or event.get("client_msg_id")
-    with rate_lock:
-        if dedupe_event(str(event_id) if event_id else "", now_ts):
-            return
 
     # (1) 메시지 수정/삭제 등 '메시지 본문이 아닌 이벤트'는 제외
     if event.get("subtype") is not None:
@@ -557,9 +529,11 @@ def handle_message(body, say):
 
     # !mute / !unmute
     if cmd.startswith("!mute"):
-        with rate_lock:
+        with state_lock:
             is_muted = True
-            global_alert_sent_times.clear()
+            message_window.clear()          # ✅ 누적 카운트 제거
+            global_alert_sent_times.clear() # ✅ 레이트리밋 카운터 초기화(원하면 유지해도 됨)
+
         try:
             app.client.chat_postMessage(channel=channel, text="🔇 Bot mute 상태입니다.")
         except Exception as e:
@@ -567,15 +541,21 @@ def handle_message(body, say):
         return
 
     if cmd.startswith("!unmute"):
-        with rate_lock:
+        with state_lock:
             is_muted = False
             message_window.clear()
             global_alert_sent_times.clear()
+
         try:
-            app.client.chat_postMessage(channel=channel, text="🔔 Bot unmute 되었습니다.")
+            app.client.chat_postMessage(channel=channel, text="🔔 Bot unmute 되었습니다. (카운트 초기화)")
         except Exception as e:
             print(f"[UNMUTE_REPLY_FAIL] {repr(e)}")
         return
+
+    # ✅ mute 상태면 카운팅/전파 로직으로 내려가지 않음
+    with state_lock:
+        if is_muted:
+            return
 
     process_message(event)
 
@@ -587,8 +567,9 @@ def handle_message(body, say):
 def slash_mute(ack, respond):
     global is_muted
     ack()
-    with rate_lock:
+    with state_lock:
         is_muted = True
+        message_window.clear()
         global_alert_sent_times.clear()
     respond("🔇 Bot mute 설정 완료")
 
@@ -597,7 +578,7 @@ def slash_mute(ack, respond):
 def slash_unmute(ack, respond):
     global is_muted
     ack()
-    with rate_lock:
+    with state_lock:
         is_muted = False
         message_window.clear()
         global_alert_sent_times.clear()
