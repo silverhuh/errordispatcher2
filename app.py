@@ -74,10 +74,10 @@ MENTION_PJH = "<@U04LL3F11C6>"
 # --------------------------------------------------------
 WINDOW_SECONDS = 240  # threshold 카운팅 윈도우(기존 유지)
 
-# ✅ 전역 발언 제한: 5분 동안 1회 (전 채널 통합)
+# ✅ 전역 발언 제한: 5분 동안 2회 (전 채널 통합)
 GLOBAL_RATE_WINDOW_SECONDS = 300
-GLOBAL_RATE_LIMIT_COUNT = 1
-global_alert_sent_times = deque()  # "트리거 1회당 1건"을 보장하기 위해 트리거 단위로 카운트
+GLOBAL_RATE_LIMIT_COUNT = 2
+global_alert_sent_times = deque()  # "트리거 1회당 2건"을 보장하기 위해 트리거 단위로 카운트
 
 message_window = defaultdict(deque)  # (channel, rule) -> deque[timestamps]
 is_muted = False
@@ -97,7 +97,7 @@ RULES = [
         "name": "RTZR_API",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "RTZR_API",
-        "threshold": 5,
+        "threshold": 6,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -110,7 +110,7 @@ RULES = [
             {
                 "channel": RTZR_STT_SKT_ALERT_CH,
                 "text": (
-                    f"{ALERT_PREFIX} RTZR_API 5회 이상 감지중! "
+                    f"{ALERT_PREFIX} RTZR_API 6회 이상 감지중! "
                     f"{MENTION_KDW}님, {MENTION_NJK}님, {MENTION_JJY}님 확인 문의드립니다. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
@@ -122,12 +122,12 @@ RULES = [
         "name": "PET_API",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "PET_API",
-        "threshold": 5,
+        "threshold": 6,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
                 "text": (
-                    f"{ALERT_PREFIX} 노트 에러(PET_API) 5회 이상 감지중! "
+                    f"{ALERT_PREFIX} 노트 에러(PET_API) 6회 이상 감지중! "
                     f"{MENTION_KJH}님, {MENTION_KHR}님 확인 문의드립니다. "
                     f"(cc. {MENTION_HEO}님)"
                 ),
@@ -139,7 +139,7 @@ RULES = [
         "name": "BUILTIN_ONE",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "builtin.one",
-        "threshold": 5,
+        "threshold": 6,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -240,7 +240,7 @@ RULES = [
         "name": "LINER",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Liner",
-        "threshold": 5,
+        "threshold": 6,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -316,7 +316,7 @@ RULES = [
         "name": "API",
         "channel": SVC_TMAP_DIV_CH,
         "keyword": "API",
-        "threshold": 5,
+        "threshold": 12,
         "notify": [
             {
                 "channel": SVC_TMAP_DIV_CH,
@@ -401,8 +401,8 @@ def keyword_hits_in_text(keyword: str, text: str) -> int:
 def send_alert_for_rule(rule, event):
     """
     ✅ 전파 중 일부 채널 실패해도 프로세스가 죽지 않도록 방어
-    ✅ 전역 발언 제한: 5분 동안 1회
-    ✅ 트리거 1회당 알림 1건만 전송 (notify 여러 개여도 첫 1건 성공 후 종료)
+    ✅ 전역 발언 제한: 5분 동안 2회
+    ✅ 트리거 1회당 알림 2건만 전송 (notify 여러 개여도 첫 2건 성공 후 종료)
     ✅ mute 경쟁 상태 방지: state_lock으로 원자적으로 체크/마크
     """
     now_ts = time.time()
@@ -430,7 +430,7 @@ def send_alert_for_rule(rule, event):
             app.client.chat_postMessage(channel=target_channel, text=text)
             sent_any = True
 
-            # ✅ 트리거 1회당 메시지 1건만
+            # ✅ 트리거 1회당 메시지 2건만
             break
 
         except Exception as e:
@@ -478,13 +478,13 @@ def process_message(event):
             send_alert_for_rule(rule, event)
             message_window[key].clear()
 
-    # 2) TMAP 채널 전용: "API" 미포함 메시지 5회
+    # 2) TMAP 채널 전용: "API" 미포함 메시지 6회
     if channel == SVC_TMAP_DIV_CH and "api" not in text.lower():
         key = (channel, "TMAP_API_MISSING")
         prune_old_events(key, now_ts)
         message_window[key].append(now_ts)
 
-        if len(message_window[key]) >= 5:
+        if len(message_window[key]) >= 6:
             pseudo_rule = {
                 "name": "TMAP_API_MISSING",
                 "notify": [
