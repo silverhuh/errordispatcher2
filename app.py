@@ -399,27 +399,20 @@ def keyword_hits_in_text(keyword: str, text: str) -> int:
 
 
 def send_alert_for_rule(rule, event):
-    """
-    ✅ 전파 중 일부 채널 실패해도 프로세스가 죽지 않도록 방어
-    ✅ 전역 발언 제한: 5분 동안 2회
-    ✅ 트리거 1회당 알림 2건만 전송 (notify 여러 개여도 첫 2건 성공 후 종료)
-    ✅ mute 경쟁 상태 방지: state_lock으로 원자적으로 체크/마크
-    """
     now_ts = time.time()
     original_text = event.get("text", "") or ""
     rule_name = rule.get("name")
 
-    # 1) 먼저 '전송 권한'을 lock 안에서 확보(슬롯 예약)
+    # 1) 전송 권한 확보(트리거 단위 1회 카운트)
     with state_lock:
         if not global_can_speak_locked(now_ts):
             return
-        # 슬롯 예약(여기서 mark) -> 이후 스레드가 동시에 들어와도 추가 전송 못 함
         global_mark_spoke_locked(now_ts)
 
-    sent_any = False
+    sent_count = 0
     errors = []
 
-    # 2) 실제 전송 (락 밖에서 수행: Slack API 호출이 느려도 전체가 막히지 않게)
+    # 2) 실제 전송: notify 중 최대 2건까지 전송
     for action in rule.get("notify", []):
         target_channel = action.get("channel")
         try:
@@ -428,25 +421,24 @@ def send_alert_for_rule(rule, event):
                 text += f"\n\n```{original_text}```"
 
             app.client.chat_postMessage(channel=target_channel, text=text)
-            sent_any = True
+            sent_count += 1
 
-            # ✅ 트리거 1회당 메시지 2건만
-            break
+            if sent_count >= 2:   # ✅ 트리거 1회당 최대 2건
+                break
 
         except Exception as e:
             errors.append(f"{target_channel} -> {repr(e)}")
 
-    # 3) 만약 "첫 전송"이 실패했다면? -> 예약했던 슬롯을 되돌려주자(재시도 가능하게)
-    if not sent_any:
+    # 3) 전부 실패했으면 예약 슬롯 되돌리기
+    if sent_count == 0:
         with state_lock:
-            # 방어적으로: 가장 마지막이 지금 예약분이면 pop
             if global_alert_sent_times and global_alert_sent_times[-1] == now_ts:
                 global_alert_sent_times.pop()
 
-        if errors:
-            src_channel = event.get("channel")
-            print(f"[ALERT_FAIL] rule={rule_name} src_channel={src_channel} errors={errors}")
-
+    # (선택) 일부 실패 로그
+    if errors:
+        src_channel = event.get("channel")
+        print(f"[ALERT_PARTIAL_FAIL] rule={rule_name} src_channel={src_channel} sent={sent_count} errors={errors}")
 
 def process_message(event):
     channel = event.get("channel")
