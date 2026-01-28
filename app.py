@@ -42,6 +42,7 @@ OPEN_MONITORING_CH = "C09BLHZAPSS"
 # 멘션 ID 정의
 # --------------------------------------------------------
 MENTION_HEO = "<@U04MGC3BFCY>"
+MENTION_KHM = "<@U04LKUQD294>"
 
 MENTION_KDW = "<@U03H53S4B2B>"
 MENTION_NJK = "<@U03L9HG1Q49>"
@@ -112,7 +113,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} RTZR_API 6회 이상 감지중! "
                     f"{MENTION_KDW}님, {MENTION_NJK}님, {MENTION_JJY}님 확인 문의드립니다. "
-                    f"(cc. {MENTION_HEO}님)"
+                    f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": False,
             },
@@ -129,7 +130,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} 노트 에러(PET_API) 6회 이상 감지중! "
                     f"{MENTION_KJH}님, {MENTION_KHR}님 확인 문의드립니다. "
-                    f"(cc. {MENTION_HEO}님)"
+                    f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": False,
             },
@@ -143,7 +144,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": (f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다." f"(cc. {MENTION_HEO}님)"),
+                "text": (f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다." f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"),
                 "include_log": False,
             },
         ],
@@ -156,7 +157,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Perplexity 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Perplexity 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님, {MENTION_KHM}님)",
                 "include_log": False,
             },
             {
@@ -164,7 +165,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} Perplexity 에러가 발생되어 확인 문의드립니다. "
                     f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
@@ -178,7 +179,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Claude 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Claude 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님, {MENTION_KHM}님)",
                 "include_log": False,
             },
             {
@@ -186,7 +187,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} Claude 에러가 발생되어 확인 문의드립니다. "
                     f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
@@ -200,7 +201,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} GPT 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} GPT 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님, {MENTION_KHM}님)",
                 "include_log": False,
             },
             {
@@ -208,7 +209,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} GPT 에러가 발생되어 확인 문의드립니다. "
                     f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
@@ -222,7 +223,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Gemini 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Gemini 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님, {MENTION_KHM}님)",
                 "include_log": False,
             },
             {
@@ -230,7 +231,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} Gemini 에러가 발생되어 확인 문의드립니다. "
                     f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님)"
+                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
@@ -244,7 +245,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} Liner 모델 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} Liner 모델 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님, {MENTION_KHM}님)",
                 "include_log": False,
             },
             {
@@ -252,7 +253,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} Liner 에러가 발생되어 확인 문의드립니다. "
                     f"{MENTION_KAI}님, {MENTION_BSR}님 "
-                    f"(cc. {MENTION_HEO}님)"
+                    f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
@@ -266,7 +267,7 @@ RULES = [
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
-                "text": f"{ALERT_PREFIX} A.X 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "text": f"{ALERT_PREFIX} A.X 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님, {MENTION_KHM}님)",
                 "include_log": False,
             },
             {
@@ -274,7 +275,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} A.X 에러가 발생되어 확인 문의드립니다. "
                     f"{MENTION_KSW}님, {MENTION_LYS}님 "
-                    f"(cc. {MENTION_HEO}님)"
+                    f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
@@ -291,7 +292,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} 에러가 감지되어 확인 문의드립니다. "
                     f"{MENTION_SYC}님, {MENTION_GMS}님 "
-                    f"(cc. {MENTION_HEO}님)"
+                    f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": False,
             },
@@ -306,7 +307,7 @@ RULES = [
         "notify": [
             {
                 "channel": TEST_ALERT_CH,
-                "text": f"{ALERT_PREFIX} 테스트 알림: test 감지됨.",
+                "text": f"{ALERT_PREFIX} 테스트 알림: test 감지됨. cc. {MENTION_HEO}님, {MENTION_KHM}님",
                 "include_log": False,
             },
         ],
@@ -322,7 +323,7 @@ RULES = [
                 "channel": SVC_TMAP_DIV_CH,
                 "text": (
                     f"{ALERT_PREFIX} TMAP API 에러가 감지되어 티모비 채널에 전파하였습니다. "
-                    f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                    f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_KHM}님, {MENTION_HEO}님)"
                 ),
                 "include_log": False,
             },
@@ -331,7 +332,7 @@ RULES = [
                 "text": (
                     f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. "
                     f"<!here>\n"
-                    f"(cc. {MENTION_HEO}님)"
+                    f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": False,
             },
@@ -485,7 +486,7 @@ def process_message(event):
                         "text": (
                             f"{ALERT_PREFIX} 내부 원인으로 추정되는 에러가 감지되어 확인 문의드립니다. "
                             f"{MENTION_KHJ}님, {MENTION_PJH}님 "
-                            f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                            f"(cc. {MENTION_KHM}님, {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
                         ),
                         "include_log": False,
                     }
