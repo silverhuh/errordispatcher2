@@ -338,6 +338,40 @@ RULES = [
             },
         ],
     },
+    # TMAP status=500
+    {
+        "name": "status=500",
+        "channel": SVC_TMAP_DIV_CH,
+        "keyword": "status=500",
+        "threshold": 6,
+        "notify": [
+            {
+                "channel": SVC_TMAP_DIV_CH,
+                "text": (
+                    f"{ALERT_PREFIX} status=500 에러가 감지되어 확인 문의드립니다. {MENTION_KHJ}님, {MENTION_PJH}님 "
+                    f"(cc. {MENTION_KHM}님, {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+        ],
+    },
+    # TMAP TOAST ERROR
+    {
+        "name": "TOAST ERROR",
+        "channel": SVC_TMAP_DIV_CH,
+        "keyword": "TOAST ERROR",
+        "threshold": 6,
+        "notify": [
+            {
+                "channel": SVC_TMAP_DIV_CH,
+                "text": (
+                    f"{ALERT_PREFIX} 토스트 에러 확인 문의드립니다. {MENTION_KHJ}님, {MENTION_PJH}님 "
+                    f"(cc. {MENTION_KHM}님, {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_HEO}님)"
+                ),
+                "include_log": False,
+            },
+        ],
+    },
 ]
 
 # --------------------------------------------------------
