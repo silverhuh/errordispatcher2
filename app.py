@@ -335,7 +335,7 @@ RULES = [
                     f"<!here>\n"
                     f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
-                "include_log": False,
+                "include_log": True,
             },
         ],
     },
