@@ -104,8 +104,8 @@ RULES = [
             {
                 "channel": SVC_WATCHTOWER_CH,
                 "text": (
-                    f"{ALERT_PREFIX} Test 메시지 : 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. "
-                    f"(cc. {MENTION_HEO}님)"
+                    f"{ALERT_PREFIX} 노트 에러(RTZR_API)가 감지되어 담당자 전달하였습니다. "
+                    f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": False,
             },
