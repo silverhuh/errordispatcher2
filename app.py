@@ -315,8 +315,7 @@ RULES = [
             },
         ],
     },
-
-        # napkin
+    # napkin
     {
         "name": "diagramCreate",
         "channel": SVC_WATCHTOWER_CH,
@@ -324,9 +323,15 @@ RULES = [
         "threshold": 6,
         "notify": [
             {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": f"{ALERT_PREFIX} napkin 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "include_log": False,
+            },
+            {
                 "channel": SKT_NAPKIN,
                 "text": (
-                    f"{ALERT_PREFIX} napkin error has been detected. Could you please check? {MENTION_ERW} "
+                    f"{ALERT_PREFIX} napkin error has been detected. Could you please check? "
+                    f"{MENTION_ERW}"
                     f"(cc. {MENTION_HEO})"
                 ),
                 "include_log": True,
@@ -334,7 +339,7 @@ RULES = [
         ],
     },
 
-        # napkin test
+    # napkin test
     {
         "name": "diagramCreate",
         "channel": TEST_ALERT_CH,
@@ -342,16 +347,22 @@ RULES = [
         "threshold": 6,
         "notify": [
             {
+                "channel": TEST_ALERT_CH,
+                "text": f"{ALERT_PREFIX} napkin 에러가 감지되어 담당자 전달하였습니다. (cc. {MENTION_HEO}님)",
+                "include_log": False,
+            },
+            {
                 "channel": SKT_NAPKIN,
                 "text": (
-                    f"{ALERT_PREFIX} napkin error has been detected. Could you please check? {MENTION_ERW} "
+                    f"{ALERT_PREFIX} napkin error has been detected. Could you please check? "
+                    f"{MENTION_ERW}"
                     f"(cc. {MENTION_HEO})"
                 ),
                 "include_log": True,
             },
         ],
     },
-    
+        
     # TMAP API
     {
         "name": "API",
