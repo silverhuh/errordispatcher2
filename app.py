@@ -37,6 +37,7 @@ LINER_ADOT_CH = "C08DRU0U7CK"
 ERROR_AX_CH = "C0A2ZM3EMBN"
 TEST_ALERT_CH = "C092DJVHVPY"
 OPEN_MONITORING_CH = "C09BLHZAPSS"
+SKT_NAPKIN = "C0A6X4Y1PKP"
 
 # --------------------------------------------------------
 # 멘션 ID 정의
@@ -70,6 +71,7 @@ MENTION_SYC = "<@U04LSHQMADR>"
 MENTION_KHJ = "<@U04LC55FDN3>"
 MENTION_PJH = "<@U04LL3F11C6>"
 MENTION_KTH = "<@U04LPNR61BP>"
+MENTION_ERW = "<@U0589UYGNUX>"
 
 # --------------------------------------------------------
 # 공통 설정
@@ -313,6 +315,43 @@ RULES = [
             },
         ],
     },
+
+        # napkin
+    {
+        "name": "diagramCreate",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "diagramCreate",
+        "threshold": 6,
+        "notify": [
+            {
+                "channel": SKT_NAPKIN,
+                "text": (
+                    f"{ALERT_PREFIX} napkin error has been detected. Could you please check? {MENTION_ERW} "
+                    f"(cc. {MENTION_HEO})"
+                ),
+                "include_log": True,
+            },
+        ],
+    },
+
+        # napkin test
+    {
+        "name": "diagramCreate",
+        "channel": TEST_ALERT_CH,
+        "keyword": "diagramCreate",
+        "threshold": 6,
+        "notify": [
+            {
+                "channel": SKT_NAPKIN,
+                "text": (
+                    f"{ALERT_PREFIX} napkin error has been detected. Could you please check? {MENTION_ERW} "
+                    f"(cc. {MENTION_HEO})"
+                ),
+                "include_log": True,
+            },
+        ],
+    },
+    
     # TMAP API
     {
         "name": "API",
