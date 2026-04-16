@@ -38,6 +38,7 @@ ERROR_AX_CH = "C0A2ZM3EMBN"
 TEST_ALERT_CH = "C092DJVHVPY"
 OPEN_MONITORING_CH = "C09BLHZAPSS"
 SKT_NAPKIN = "C0A6X4Y1PKP"
+ADOT_BIZ_TEAM = "C0ADQU3PRRC"
 
 # --------------------------------------------------------
 # 멘션 ID 정의
@@ -97,6 +98,27 @@ BOT_ID = None  # event.get("bot_id") 비교용(있으면 더 안전)
 # RULES (기존 유지)
 # --------------------------------------------------------
 RULES = [
+    {
+        "name": "ADOTBIZ",
+        "channel": TEST_ALERT_CH,
+        "keyword": "이상 감지",
+        "threshold": 1,
+        "notify": [
+            {
+                "channel": TEST_ALERT_CH,
+                "text": f"{ALERT_PREFIX} 이상 감지되어 관련 채널에 전파하였습니다.",
+                "include_log": False,
+            },
+            {
+                "channel": ADOT_BIZ_TEAM,
+                "text": (
+                    f"{ALERT_PREFIX} 이상 감지되어 안내드립니다."
+                    f"{MENTION_HEO}님"                    
+                ),
+                "include_log": True,
+            },
+        ],
+    },
     {
         "name": "RTZR_API",
         "channel": SVC_WATCHTOWER_CH,
