@@ -112,8 +112,7 @@ RULES = [
             {
                 "channel": ADOT_BIZ_TEAM,
                 "text": (
-                    f"{ALERT_PREFIX} 이상 감지되어 안내드립니다."
-                    f"{MENTION_HEO}님"                    
+                    f"{ALERT_PREFIX} 이상 감지되어 안내드립니다."                                    
                 ),
                 "include_log": True,
             },
