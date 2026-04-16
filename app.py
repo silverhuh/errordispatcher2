@@ -39,6 +39,7 @@ TEST_ALERT_CH = "C092DJVHVPY"
 OPEN_MONITORING_CH = "C09BLHZAPSS"
 SKT_NAPKIN = "C0A6X4Y1PKP"
 ADOT_BIZ_TEAM = "C0ADQU3PRRC"
+ADOT_BIZ_MONITOR = "C0ATEKW9ACC"
 
 # --------------------------------------------------------
 # 멘션 ID 정의
@@ -110,7 +111,7 @@ RULES = [
                 "include_log": False,
             },
             {
-                "channel": ADOT_BIZ_TEAM,
+                "channel": ADOT_BIZ_MONITOR,
                 "text": (
                     f"{ALERT_PREFIX} 이상 감지되어 안내드립니다."                                    
                 ),
