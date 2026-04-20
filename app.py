@@ -39,7 +39,6 @@ TEST_ALERT_CH = "C092DJVHVPY"
 OPEN_MONITORING_CH = "C09BLHZAPSS"
 SKT_NAPKIN = "C0A6X4Y1PKP"
 ADOT_BIZ_TEAM = "C0ADQU3PRRC"
-ADOT_BIZ_MONITOR = "C0ATEKW9ACC"
 
 # --------------------------------------------------------
 # 멘션 ID 정의
@@ -111,7 +110,7 @@ RULES = [
                 "include_log": False,
             },
             {
-                "channel": ADOT_BIZ_MONITOR,
+                "channel": ADOT_BIZ_TEAM,
                 "text": (
                     f"{ALERT_PREFIX} 이상 감지되어 안내드립니다."                                    
                 ),
@@ -450,57 +449,6 @@ RULES = [
 # --------------------------------------------------------
 # helpers
 # --------------------------------------------------------
-def extract_all_text(event: dict) -> str:
-    """
-    메시지 이벤트에서 키워드 매칭용 텍스트를 전부 수집한다.
-    - event["text"]
-    - event["attachments"][*].{title, pretext, text, fallback, author_name, footer}
-    - event["attachments"][*].fields[*].{title, value}
-    - event["blocks"] 내부 모든 text 재귀 수집
-    - event["message"] (message_changed 등 subtype 안쪽) 재귀 처리
-    ※ 이메일 전파 메시지는 "제목"이 attachments[0].title 에 들어오므로 이 함수가 필수.
-    """
-    parts = []
-
-    if event.get("text"):
-        parts.append(str(event["text"]))
-
-    for att in event.get("attachments", []) or []:
-        for key in ("title", "pretext", "text", "fallback", "author_name", "footer"):
-            v = att.get(key)
-            if v:
-                parts.append(str(v))
-        for field in att.get("fields", []) or []:
-            if field.get("title"):
-                parts.append(str(field["title"]))
-            if field.get("value"):
-                parts.append(str(field["value"]))
-
-    def walk_blocks(node):
-        if isinstance(node, dict):
-            t = node.get("text")
-            if isinstance(t, str):
-                parts.append(t)
-            elif isinstance(t, dict) and t.get("text"):
-                parts.append(str(t["text"]))
-            if node.get("type") == "text" and isinstance(node.get("text"), str):
-                parts.append(node["text"])
-            for key in ("elements", "fields", "blocks", "accessory"):
-                if key in node:
-                    walk_blocks(node[key])
-        elif isinstance(node, list):
-            for item in node:
-                walk_blocks(item)
-
-    walk_blocks(event.get("blocks", []))
-
-    inner = event.get("message")
-    if isinstance(inner, dict) and inner is not event:
-        parts.append(extract_all_text(inner))
-
-    return "\n".join(parts)
-
-
 def init_bot_identity():
     """
     BOT_USER_ID: 내 봇 '유저' ID (U로 시작)
@@ -559,8 +507,7 @@ def keyword_hits_in_text(keyword: str, text: str) -> int:
 
 def send_alert_for_rule(rule, event):
     now_ts = time.time()
-    # ✅ 이메일 전파의 attachments/blocks 까지 포함해서 로그용 텍스트 확보
-    original_text = extract_all_text(event)
+    original_text = event.get("text", "") or ""
     rule_name = rule.get("name")
 
     # 1) 전송 권한 확보(트리거 단위 1회 카운트)
@@ -602,8 +549,7 @@ def send_alert_for_rule(rule, event):
 
 def process_message(event):
     channel = event.get("channel")
-    # ✅ event.text 뿐 아니라 attachments(이메일 전파의 제목 등)/blocks 까지 전부 수집
-    text = extract_all_text(event)
+    text = (event.get("text") or "")
     now_ts = time.time()
 
     # ✅ mute 중엔 카운팅도 하지 않음(누적 방지)
