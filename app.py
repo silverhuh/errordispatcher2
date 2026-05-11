@@ -39,6 +39,7 @@ TEST_ALERT_CH = "C092DJVHVPY"
 OPEN_MONITORING_CH = "C09BLHZAPSS"
 SKT_NAPKIN = "C0A6X4Y1PKP"
 ADOT_BIZ_TEAM = "C0ADQU3PRRC"
+TM_SERVICEDEVTEAM_dev_biz = "C0B12JP7ARW"
 
 # --------------------------------------------------------
 # 멘션 ID 정의
@@ -169,6 +170,19 @@ RULES = [
             {
                 "channel": SVC_WATCHTOWER_CH,
                 "text": (f"{ALERT_PREFIX} One Agent 에러가 감지되었습니다." f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"),
+                "include_log": False,
+            },
+        ],
+    },
+        {
+        "name": "BIZ_TEST",
+        "channel": TM_SERVICEDEVTEAM_dev_biz,
+        "keyword": "class",
+        "threshold": 1,
+        "notify": [
+            {
+                "channel": TEST_ALERT_CH,
+                "text": (f"{ALERT_PREFIX} Biz Test 알림" f"(cc. {MENTION_HEO}님"),
                 "include_log": False,
             },
         ],
