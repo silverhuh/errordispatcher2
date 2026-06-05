@@ -74,6 +74,7 @@ MENTION_KHJ = "<@U04LC55FDN3>"
 MENTION_PJH = "<@U04LL3F11C6>"
 MENTION_KTH = "<@U04LPNR61BP>"
 MENTION_ERW = "<@U0589UYGNUX>"
+MENTION_KEK = "<@U04LSM2EZKL>"
 
 # --------------------------------------------------------
 # 공통 설정
@@ -395,13 +396,13 @@ RULES = [
             {
                 "channel": SVC_TMAP_DIV_CH,
                 "text": (
-                    f"{ALERT_PREFIX} TMAP API 에러가 감지되어 티모비 채널에 전파하였습니다. "
-                    f"(cc. {MENTION_GMS}님, {MENTION_JUR}님, {MENTION_KHM}님, {MENTION_HEO}님)"
+                    f"{ALERT_PREFIX} TMAP 에러가 감지되어 확인 문의드립니다. "
+                    f"(cc. {MENTION_GMS}님, {MENTION_KEK}님, {MENTION_JUR}님, {MENTION_KHM}님, {MENTION_HEO}님)"
                 ),
                 "include_log": False,
             },
             {
-                "channel": OPEN_MONITORING_CH,
+                "channel": OPEN_MONITORING_CH_stop,
                 "text": (
                     f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. "
                     f"<!here>\n"
