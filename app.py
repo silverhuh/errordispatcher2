@@ -400,16 +400,7 @@ RULES = [
                     f"(cc. {MENTION_GMS}님, {MENTION_KEK}님, {MENTION_JUR}님, {MENTION_KHM}님, {MENTION_HEO}님)"
                 ),
                 "include_log": False,
-            },
-            {
-                "channel": OPEN_MONITORING_CH_stop,
-                "text": (
-                    f"{ALERT_PREFIX} TMAP API 에러가 지속 감지되어 확인 문의드립니다. "
-                    f"<!here>\n"
-                    f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
-                ),
-                "include_log": True,
-            },
+            },          
         ],
     },
     # TMAP status=500
