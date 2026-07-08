@@ -75,6 +75,7 @@ MENTION_PJH = "<@U04LL3F11C6>"
 MENTION_KTH = "<@U04LPNR61BP>"
 MENTION_ERW = "<@U0589UYGNUX>"
 MENTION_KEK = "<@U04LSM2EZKL>"
+NENTION_KJH = "<@U04QBMTUQ0G>"
 
 # --------------------------------------------------------
 # 공통 설정
@@ -190,8 +191,8 @@ RULES = [
                 "channel": EXT_GIP_REPAIRING_CH,
                 "text": (
                     f"{ALERT_PREFIX} Perplexity 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님, {MENTION_KHM}님)"
+                    f"{MENTION_KJH}님"
+                    f"(cc. {MENTION_YYJ}님, {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
@@ -212,8 +213,8 @@ RULES = [
                 "channel": EXT_GIP_REPAIRING_CH,
                 "text": (
                     f"{ALERT_PREFIX} Claude 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님, {MENTION_KHM}님)"
+                    f"{MENTION_KJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
@@ -234,8 +235,8 @@ RULES = [
                 "channel": EXT_GIP_REPAIRING_CH,
                 "text": (
                     f"{ALERT_PREFIX} GPT 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님, {MENTION_KHM}님)"
+                    f"{MENTION_KJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
@@ -256,8 +257,8 @@ RULES = [
                 "channel": EXT_GIP_REPAIRING_CH,
                 "text": (
                     f"{ALERT_PREFIX} Gemini 에러가 발생되어 확인 문의드립니다. "
-                    f"{MENTION_KYH}님, {MENTION_GJH}님 "
-                    f"(cc. {MENTION_YYJ}님, {MENTION_PJY}님, {MENTION_HEO}님, {MENTION_KHM}님)"
+                    f"{MENTION_KJH}님 "
+                    f"(cc. {MENTION_YYJ}님, {MENTION_HEO}님, {MENTION_KHM}님)"
                 ),
                 "include_log": True,
             },
