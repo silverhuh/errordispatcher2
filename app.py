@@ -39,6 +39,7 @@ TEST_ALERT_CH = "C092DJVHVPY"
 OPEN_MONITORING_CH = "C09BLHZAPSS"
 SKT_NAPKIN = "C0A6X4Y1PKP"
 ADOT_BIZ_TEAM = "C0ADQU3PRRC"
+KAI_WEB = "C0A2M4STE1G"
 
 
 # --------------------------------------------------------
@@ -76,6 +77,15 @@ MENTION_KTH = "<@U04LPNR61BP>"
 MENTION_ERW = "<@U0589UYGNUX>"
 MENTION_KEK = "<@U04LSM2EZKL>"
 NENTION_KJH = "<@U04QBMTUQ0G>"
+NENTION_CYM = "<@U06ECTJLK9P>"
+NENTION_HSM = "<@U051HRQ5Q6M>"
+NENTION_EHJ = "<@U04LL3HTRRC>"
+NENTION_KSI = "<@U0AD6GMS6DA>"
+NENTION_KJB = "<@U0A8Q3D0B0U>"
+NENTION_YGY = "<@U04LL3HS3GW>"
+NENTION_PSY = "<@U04LL3A9G94>"
+NENTION_LYJ = "<@U04MGC69K16>"
+
 
 # --------------------------------------------------------
 # 공통 설정
@@ -308,6 +318,28 @@ RULES = [
             },
         ],
     },
+    {
+        "name": "KAI K2",
+        "channel": SVC_WATCHTOWER_CH,
+        "keyword": "KAI K2",
+        "threshold": 1,
+        "notify": [
+            {
+                "channel": SVC_WATCHTOWER_CH,
+                "text": f"{ALERT_PREFIX} KAI K2 에러가 감지되어 담당자 전달하였습니다.",
+                "include_log": False,
+            },
+            {
+                "channel": KAI_WEB,
+                "text": (
+                    f"{ALERT_PREFIX} KAI K2 에러가 발생되어 확인 문의드립니다. "
+                    f"{MENTION_YGY}님, {MENTION_KJB}님, {MENTION_KSI}님, {MENTION_EHJ}님, {MENTION_HSM}님, {MENTION_CYM}님, {MENTION_PSY}님, {MENTION_LYJ}님"
+                    f"(cc. {MENTION_HEO}님, {MENTION_KHM}님)"
+                ),
+                "include_log": True,
+            },
+        ],
+    },    
     {
         "name": "REQUEST_ID",
         "channel": SVC_BTV_DIV_CH,
