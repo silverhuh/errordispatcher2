@@ -322,7 +322,7 @@ RULES = [
         "name": "KAI K2",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "KAI K2",
-        "threshold": 1,
+        "threshold": 100,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
