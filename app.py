@@ -1,4 +1,5 @@
 import os
+import re  # ✅ [ADD] Note ID 추출용
 import socket
 import time
 import threading
@@ -40,6 +41,7 @@ OPEN_MONITORING_CH = "C09BLHZAPSS"
 SKT_NAPKIN = "C0A6X4Y1PKP"
 ADOT_BIZ_TEAM = "C0ADQU3PRRC"
 KAI_WEB = "C0A2M4STE1G"
+ALERT_BIZ_ERR_CH = "C0ATEKW9ACC"  # ✅ [ADD] #alert_biz_err
 
 
 # --------------------------------------------------------
@@ -85,6 +87,9 @@ MENTION_KJB = "<@U0A8Q3D0B0U>"
 MENTION_YGY = "<@U04LL3HS3GW>"
 MENTION_PSY = "<@U04LL3A9G94>"
 MENTION_LYJ = "<@U04MGC69K16>"
+MENTION_PYH = "<@U06LBEGDEPQ>"
+MENTION_YJS = "<@U04LPNZRLAZ>"
+MENTION_KSW = "<@U04LV5NEX3N>"
 
 
 # --------------------------------------------------------
@@ -106,6 +111,12 @@ state_lock = threading.Lock()
 # 내 봇 식별용
 BOT_USER_ID = None
 BOT_ID = None  # event.get("bot_id") 비교용(있으면 더 안전)
+
+# ✅ [ADD] #alert_biz_err 전용: 4분 내 '서로 다른 Note ID' 5명 이상이면 담당자 멘션
+BIZ_ERR_WINDOW_SECONDS = 4 * 60          # 4분
+BIZ_ERR_DISTINCT_THRESHOLD = 5           # 서로 다른 Note ID(=사용자) 수
+biz_err_note_window = deque()            # deque[(timestamp, note_id)]  ※ 기존 message_window와 분리
+NOTE_ID_RE = re.compile(r"Note ID:\s*([0-9a-fA-F-]+)")
 
 # --------------------------------------------------------
 # RULES (기존 유지)
@@ -497,6 +508,12 @@ def prune_old_events(key, now_ts: float):
         dq.popleft()
 
 
+def prune_biz_err_notes(now_ts: float):
+    """✅ [ADD] #alert_biz_err: 4분 윈도우를 벗어난 (ts, note_id) 제거"""
+    while biz_err_note_window and now_ts - biz_err_note_window[0][0] > BIZ_ERR_WINDOW_SECONDS:
+        biz_err_note_window.popleft()
+
+
 def prune_global_alerts(now_ts: float):
     while global_alert_sent_times and (now_ts - global_alert_sent_times[0] > GLOBAL_RATE_WINDOW_SECONDS):
         global_alert_sent_times.popleft()
@@ -626,6 +643,35 @@ def process_message(event):
             }
             send_alert_for_rule(pseudo_rule, event)
             message_window[key].clear()
+
+    # 3) ✅ [ADD] #alert_biz_err 전용: 4분 내 '서로 다른 Note ID' 5명 이상 → 허은석 멘션
+    #    - 같은 Note ID가 여러 번 에러나도 1명으로만 카운트(set으로 중복 제거)
+    #    - Note ID가 없는 메시지는 카운트하지 않음
+    if channel == ALERT_BIZ_ERR_CH:
+        m = NOTE_ID_RE.search(text)
+        if m:
+            note_id = m.group(1)
+            prune_biz_err_notes(now_ts)
+            biz_err_note_window.append((now_ts, note_id))
+
+            distinct_notes = {nid for _, nid in biz_err_note_window}
+            if len(distinct_notes) >= BIZ_ERR_DISTINCT_THRESHOLD:
+                pseudo_rule = {
+                    "name": "BIZ_ERR_MULTI_USER",
+                    "notify": [
+                        {
+                            "channel": ALERT_BIZ_ERR_CH,
+                            "text": (
+                                f"{ALERT_PREFIX} Biz 노트 에러: 최근 {BIZ_ERR_WINDOW_SECONDS // 60}분 내 "
+                                f"서로 다른 사용자(Note ID) {len(distinct_notes)}명 이상 에러 감지! "
+                                f"{MENTION_KJH}님, {MENTION_PYH}님, {MENTION_YJS}님, {MENTION_KSW}님, cc.{MENTION_HEO}님, cc.{MENTION_CYM}님 확인 문의드립니다."
+                            ),
+                            "include_log": False,
+                        }
+                    ],
+                }
+                send_alert_for_rule(pseudo_rule, event)
+                biz_err_note_window.clear()
 
 
 # --------------------------------------------------------
