@@ -146,7 +146,7 @@ RULES = [
         "name": "RTZR_API",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "RTZR_API",
-        "threshold": 6,
+        "threshold": 15,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -171,7 +171,7 @@ RULES = [
         "name": "PET_API",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "PET_API",
-        "threshold": 6,
+        "threshold": 15,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -188,7 +188,7 @@ RULES = [
         "name": "BUILTIN_ONE",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "builtin.one",
-        "threshold": 6,
+        "threshold": 30,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -289,7 +289,7 @@ RULES = [
         "name": "LINER",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "Liner",
-        "threshold": 6,
+        "threshold": 15,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -311,7 +311,7 @@ RULES = [
         "name": "AX",
         "channel": SVC_WATCHTOWER_CH,
         "keyword": "A.X",
-        "threshold": 10,
+        "threshold": 30,
         "notify": [
             {
                 "channel": SVC_WATCHTOWER_CH,
@@ -355,7 +355,7 @@ RULES = [
         "name": "REQUEST_ID",
         "channel": SVC_BTV_DIV_CH,
         "keyword": "REQUEST_ID",
-        "threshold": 20,
+        "threshold": 30,
         "notify": [
             {
                 "channel": SVC_BTV_DIV_CH,
@@ -435,7 +435,7 @@ RULES = [
         "name": "API",
         "channel": SVC_TMAP_DIV_CH,
         "keyword": "API",
-        "threshold": 12,
+        "threshold": 20,
         "notify": [
             {
                 "channel": SVC_TMAP_DIV_CH,
@@ -452,7 +452,7 @@ RULES = [
         "name": "status=500",
         "channel": SVC_TMAP_DIV_CH,
         "keyword": "status=500",
-        "threshold": 6,
+        "threshold": 20,
         "notify": [
             {
                 "channel": SVC_TMAP_DIV_CH,
@@ -469,7 +469,7 @@ RULES = [
         "name": "TOAST ERROR",
         "channel": SVC_TMAP_DIV_CH,
         "keyword": "TOAST ERROR",
-        "threshold": 6,
+        "threshold": 20,
         "notify": [
             {
                 "channel": SVC_TMAP_DIV_CH,
